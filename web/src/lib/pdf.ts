@@ -20,7 +20,9 @@ export async function renderPdfBytesToCanvas(
   const isStale = () => containerRenderToken.get(container) !== renderToken;
   ensurePdfWorkerConfigured();
   const loadingTask = getDocument({
-    data: pdfBytes.slice().buffer
+    data: pdfBytes.slice().buffer,
+    cMapUrl: `${import.meta.env.BASE_URL}pdfjs/cmaps/`,
+    cMapPacked: true
   });
   try {
     const pdf = await loadingTask.promise;

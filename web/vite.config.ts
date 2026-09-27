@@ -21,6 +21,44 @@ const latexIncluded = webTarget === "core" && distribution.latexEnabled;
 const aiRuntimeBuildId = computeAiRuntimeBuildId();
 let distributionOutputDir = path.resolve(__dirname, "dist");
 
+const pdfjsCMapsDir = path.resolve(__dirname, "node_modules", "pdfjs-dist", "cmaps");
+const pdfjsAssetsPlugin = {
+  name: "toss-pdfjs-assets",
+  configureServer(server: {
+    middlewares: {
+      use: (
+        handler: (
+          request: { url?: string },
+          response: { statusCode: number; setHeader: (name: string, value: string) => void; end: (body?: Buffer) => void },
+          next: () => void,
+        ) => void,
+      ) => void;
+    };
+  }) {
+    server.middlewares.use((request, response, next) => {
+      const match = request.url?.match(/\/pdfjs\/cmaps\/([A-Za-z0-9._-]+)(?:\?.*)?$/);
+      if (!match) {
+        next();
+        return;
+      }
+      const filePath = path.resolve(pdfjsCMapsDir, match[1]);
+      if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
+        response.statusCode = 404;
+        response.end();
+        return;
+      }
+      response.setHeader("Content-Type", "application/octet-stream");
+      response.end(fs.readFileSync(filePath));
+    });
+  },
+  closeBundle() {
+    fs.mkdirSync(path.resolve(distributionOutputDir, "pdfjs"), { recursive: true });
+    fs.cpSync(pdfjsCMapsDir, path.resolve(distributionOutputDir, "pdfjs", "cmaps"), {
+      recursive: true,
+    });
+  },
+};
+
 const distributionAssetsPlugin = {
   name: "toss-distribution-assets",
   apply: "build" as const,
@@ -145,7 +183,7 @@ const browserHtmlPlugin = {
 
 export default defineConfig({
   base,
-  plugins: [react(), wasm(), browserHtmlPlugin, distributionAssetsPlugin],
+  plugins: [react(), wasm(), browserHtmlPlugin, distributionAssetsPlugin, pdfjsAssetsPlugin],
   define: {
     __TOSS_BUILD_PROJECT_TYPES__: JSON.stringify(distribution.projectTypes),
     __TOSS_BUILD_FRONTEND_FEATURES__: JSON.stringify(distribution.frontendFeatures),
