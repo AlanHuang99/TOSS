@@ -27,6 +27,25 @@ describe("mergeWorkspaceDocumentDelta", () => {
     ).toEqual({ "main.typ": "new", "notes.typ": "notes" });
   });
 
+  it("keeps citation style documents", () => {
+    expect(
+      mergeWorkspaceDocumentDelta({
+        current: { "main.typ": "#bibliography(style: \"apa.csl\")" },
+        incoming: { "apa.csl": "<style/>" },
+        nodes: [
+          { path: "main.typ", kind: "file" },
+          { path: "apa.csl", kind: "file" }
+        ],
+        activePath: "main.typ",
+        activeDocumentDirty: false,
+        activeDocumentText: ""
+      })
+    ).toEqual({
+      "main.typ": "#bibliography(style: \"apa.csl\")",
+      "apa.csl": "<style/>"
+    });
+  });
+
   it("preserves a dirty active document even when remote state deletes it", () => {
     expect(
       mergeWorkspaceDocumentDelta({

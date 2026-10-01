@@ -132,9 +132,23 @@ impl TestApp {
         bearer: Option<&str>,
         body: Option<serde_json::Value>,
     ) -> Result<TestResponse, TestError> {
+        self.send_with_headers(method, uri, bearer, &[], body).await
+    }
+
+    pub(crate) async fn send_with_headers(
+        &self,
+        method: Method,
+        uri: &str,
+        bearer: Option<&str>,
+        headers: &[(&str, String)],
+        body: Option<serde_json::Value>,
+    ) -> Result<TestResponse, TestError> {
         let mut request = Request::builder().method(method).uri(uri);
         if let Some(token) = bearer {
             request = request.header(header::AUTHORIZATION, format!("Bearer {token}"));
+        }
+        for (name, value) in headers {
+            request = request.header(*name, value.as_str());
         }
         let request = match body {
             Some(body) => request

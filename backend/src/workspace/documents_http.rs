@@ -289,9 +289,18 @@ impl From<GetDocumentError> for ApiError {
     }
 }
 
+fn document_path_unsupported() -> ApiError {
+    ApiError::new(
+        StatusCode::BAD_REQUEST,
+        ApiErrorCode::ProjectDocumentPathUnsupported,
+        "Only text files can be stored as documents; upload this file as a project asset instead",
+    )
+}
+
 impl From<CreateDocumentError> for ApiError {
     fn from(source: CreateDocumentError) -> Self {
         match source {
+            CreateDocumentError::UnsupportedPath => document_path_unsupported(),
             CreateDocumentError::PathConflict => ApiError::new(
                 StatusCode::CONFLICT,
                 ApiErrorCode::ProjectPathConflict,
@@ -305,6 +314,7 @@ impl From<CreateDocumentError> for ApiError {
 impl From<UpsertDocumentByPathError> for ApiError {
     fn from(source: UpsertDocumentByPathError) -> Self {
         match source {
+            UpsertDocumentByPathError::UnsupportedPath => document_path_unsupported(),
             UpsertDocumentByPathError::ProjectNotFound => ApiError::new(
                 StatusCode::NOT_FOUND,
                 ApiErrorCode::ProjectNotFound,
@@ -376,6 +386,131 @@ impl From<DeleteDocumentError> for ApiError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::server::test_support::{TestApp, TestError};
+    use axum::http::Method;
+    use serde_json::json;
+
+    #[test]
+    fn non_text_document_paths_name_the_asset_upload() {
+        for error in [
+            ApiError::from(CreateDocumentError::UnsupportedPath),
+            ApiError::from(UpsertDocumentByPathError::UnsupportedPath),
+        ] {
+            assert_eq!(error.status(), StatusCode::BAD_REQUEST);
+            assert_eq!(error.code(), ApiErrorCode::ProjectDocumentPathUnsupported);
+        }
+    }
+
+    #[tokio::test]
+    async fn citation_styles_are_visible_documents_and_binary_paths_are_rejected(
+    ) -> Result<(), TestError> {
+        let Some(app) = TestApp::start().await? else {
+            return Ok(());
+        };
+        let owner = app.insert_user("documents").await?;
+        let session = app.session_for(owner).await?;
+        let project_id = app.create_project(&session, "Citations").await?;
+        let documents = format!("/v1/projects/{project_id}/documents");
+        let tree = format!("/v1/projects/{project_id}/tree");
+
+        let created = app
+            .send(
+                Method::POST,
+                &documents,
+                Some(&session),
+                Some(json!({"path": "styles/apa.csl", "content": "<style/>"})),
+            )
+            .await?;
+        assert_eq!(created.status, StatusCode::OK);
+
+        let listed = app
+            .send(Method::GET, &documents, Some(&session), None)
+            .await?;
+        let paths = listed
+            .field("documents")
+            .as_array()
+            .ok_or("document list is missing")?
+            .iter()
+            .filter_map(|document| document.get("path").and_then(serde_json::Value::as_str))
+            .collect::<Vec<_>>();
+        assert!(paths.contains(&"styles/apa.csl"), "{paths:?}");
+        let by_path = app
+            .send(
+                Method::GET,
+                &format!("{documents}?path=styles/apa.csl"),
+                Some(&session),
+                None,
+            )
+            .await?;
+        assert_eq!(
+            by_path
+                .field("documents")
+                .as_array()
+                .map(|documents| documents.len()),
+            Some(1)
+        );
+
+        let loaded_tree = app.send(Method::GET, &tree, Some(&session), None).await?;
+        assert!(loaded_tree
+            .field("nodes")
+            .as_array()
+            .ok_or("tree nodes are missing")?
+            .iter()
+            .any(|node| node.get("path") == Some(&json!("styles/apa.csl"))));
+        let content_epoch = loaded_tree
+            .field("content_epoch")
+            .as_i64()
+            .ok_or("tree has no content epoch")?;
+
+        let rejected_create = app
+            .send(
+                Method::POST,
+                &documents,
+                Some(&session),
+                Some(json!({"path": "figures/chart.png", "content": "not an image"})),
+            )
+            .await?;
+        assert_eq!(rejected_create.status, StatusCode::BAD_REQUEST);
+        assert_eq!(
+            rejected_create.code(),
+            Some("project_document_path_unsupported")
+        );
+        let rejected_upsert = app
+            .send_with_headers(
+                Method::PUT,
+                &format!("{documents}/by-path/data.bin"),
+                Some(&session),
+                &[("x-project-content-epoch", content_epoch.to_string())],
+                Some(json!({"content": "payload"})),
+            )
+            .await?;
+        assert_eq!(rejected_upsert.status, StatusCode::BAD_REQUEST);
+        assert_eq!(
+            rejected_upsert.code(),
+            Some("project_document_path_unsupported")
+        );
+        let stored: i64 = sqlx::query_scalar(
+            "select count(*) from documents
+             where project_id = $1 and path in ('figures/chart.png', 'data.bin')",
+        )
+        .bind(project_id)
+        .fetch_one(&app.db)
+        .await?;
+        assert_eq!(stored, 0);
+
+        let upserted = app
+            .send_with_headers(
+                Method::PUT,
+                &format!("{documents}/by-path/styles%2Fieee.csl"),
+                Some(&session),
+                &[("x-project-content-epoch", content_epoch.to_string())],
+                Some(json!({"content": "<style/>"})),
+            )
+            .await?;
+        assert_eq!(upserted.status, StatusCode::OK, "{:?}", upserted.body);
+        assert_eq!(upserted.field("path"), "styles/ieee.csl");
+        Ok(())
+    }
 
     #[test]
     fn document_path_conflicts_have_a_semantic_conflict_response() {

@@ -20,7 +20,7 @@ not present in the active deployment catalog, the request fails.
 
 ## Add project assets
 
-Drag files into **Files** or use the upload action. Keep paths relative and use forward slashes in Typst source.
+Drag files into **Files** or use the upload action. Keep paths relative and use forward slashes in Typst source. Text files such as `.typ`, `.bib`, and `.csl` citation styles become editable documents; other files are stored as assets.
 
 ```typst
 #image("images/result.png", width: 70%)

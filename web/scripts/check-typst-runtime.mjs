@@ -69,9 +69,9 @@ function safeArchivePath(value) {
 
 function isTemplateTextFile(filePath) {
   return [
-    ".typ", ".tex", ".ltx", ".sty", ".cls", ".bst", ".bib", ".txt", ".md", ".json",
-    ".toml", ".yaml", ".yml", ".csv", ".xml", ".html", ".css", ".js", ".ts", ".tsx",
-    ".jsx"
+    ".typ", ".tex", ".ltx", ".sty", ".cls", ".bst", ".bib", ".csl", ".txt", ".md",
+    ".json", ".toml", ".yaml", ".yml", ".csv", ".xml", ".html", ".css", ".js", ".ts",
+    ".tsx", ".jsx"
   ].some((extension) => filePath.toLowerCase().endsWith(extension));
 }
 

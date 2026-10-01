@@ -50,6 +50,7 @@ pub enum ApiErrorCode {
     ProjectDescriptionInvalid,
     ProjectDocumentChanged,
     ProjectDocumentNotFound,
+    ProjectDocumentPathUnsupported,
     ProjectNameInvalid,
     ProjectNotFound,
     ProjectPathConflict,

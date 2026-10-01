@@ -3,8 +3,9 @@
 use super::documents::document_from_record;
 use super::project_entry_point::find_project_entry_point_in_transaction;
 use super::{
-    documents_persistence, lock_project_content_epoch, lock_project_content_exclusively,
-    lock_project_content_mutation, mark_project_dirty, Document, ProjectContentEpochMatch,
+    documents_persistence, is_document_text_path, lock_project_content_epoch,
+    lock_project_content_exclusively, lock_project_content_mutation, mark_project_dirty, Document,
+    ProjectContentEpochMatch,
 };
 use crate::database_error::is_unique_constraint_violation;
 use chrono::Utc;
@@ -60,6 +61,8 @@ impl DocumentMutationPersistenceError {
 
 #[derive(Debug, Error)]
 pub(super) enum CreateDocumentError {
+    #[error("documents require a text file path")]
+    UnsupportedPath,
     #[error("a project file already exists at this path")]
     PathConflict,
     #[error(transparent)]
@@ -68,6 +71,8 @@ pub(super) enum CreateDocumentError {
 
 #[derive(Debug, Error)]
 pub(super) enum UpsertDocumentByPathError {
+    #[error("documents require a text file path")]
+    UnsupportedPath,
     #[error("project was not found")]
     ProjectNotFound,
     #[error("project content changed")]
@@ -114,6 +119,11 @@ pub(super) async fn create_document(
     db: &PgPool,
     command: CreateDocumentCommand,
 ) -> Result<Document, CreateDocumentError> {
+    // The document list, tree, and editors show only text paths; anything else
+    // belongs in project assets.
+    if !is_document_text_path(&command.path) {
+        return Err(CreateDocumentError::UnsupportedPath);
+    }
     let document_id = Uuid::new_v4();
     let mut transaction = begin_document_transaction(db, command.project_id, document_id).await?;
     lock_project_content_mutation(&mut transaction, command.project_id)
@@ -173,6 +183,9 @@ pub(super) async fn upsert_document_by_path(
     db: &PgPool,
     command: UpsertDocumentByPathCommand,
 ) -> Result<Document, UpsertDocumentByPathError> {
+    if !is_document_text_path(&command.path) {
+        return Err(UpsertDocumentByPathError::UnsupportedPath);
+    }
     let document_id = Uuid::new_v4();
     let mut transaction = begin_document_transaction(db, command.project_id, document_id).await?;
     match lock_content_epoch(

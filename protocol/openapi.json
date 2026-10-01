@@ -5195,6 +5195,7 @@
           "project_description_invalid",
           "project_document_changed",
           "project_document_not_found",
+          "project_document_path_unsupported",
           "project_name_invalid",
           "project_not_found",
           "project_path_conflict",

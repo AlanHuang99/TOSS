@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   applyPreviewZoom,
   deriveFitZoom,
+  isTextFile,
   nextManualPreviewZoom,
   pixelPerPtForZoom,
   PREVIEW_MANUAL_MIN_ZOOM
@@ -54,5 +55,15 @@ describe("preview zoom policy", () => {
 
   it("keeps a render-density floor independent from display zoom", () => {
     expect(pixelPerPtForZoom("page", 0.08)).toBe(0.25);
+  });
+});
+
+describe("isTextFile", () => {
+  it("treats citation styles as text documents", () => {
+    expect(isTextFile("styles/apa.csl")).toBe(true);
+    expect(isTextFile("styles/APA.CSL")).toBe(true);
+    expect(isTextFile("refs/library.bib")).toBe(true);
+    expect(isTextFile("figures/chart.png")).toBe(false);
+    expect(isTextFile("notes.dat")).toBe(false);
   });
 });

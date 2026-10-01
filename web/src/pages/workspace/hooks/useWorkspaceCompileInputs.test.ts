@@ -64,4 +64,31 @@ describe("useWorkspaceCompileInputs", () => {
     expect(result.current.target).not.toBe(secondTarget);
     expect(result.current.target).toEqual({ kind: "latex", engine: "pdftex" });
   });
+
+  it("passes citation style documents to the compiler world", () => {
+    const { result } = renderHook(() =>
+      useWorkspaceCompileInputs({
+        projectId: "project-a",
+        activeRevisionId: null,
+        isRevisionMode: false,
+        projectType: "typst",
+        latexEngine: "xetex",
+        entryFilePath: "main.typ",
+        documents: {
+          "main.typ": '#bibliography("refs.bib", style: "styles/apa.csl")',
+          "styles/apa.csl": "<style/>"
+        },
+        assetBase64: {},
+        liveAssetMeta: {},
+        activePath: "main.typ",
+        activeDocumentText: "",
+        hasActiveLiveDocument: false,
+        realtimeDocumentReady: false,
+        realtimeBoundPath: "",
+        typstPreviewRenderer: "canvas"
+      })
+    );
+
+    expect(result.current.world.source("styles/apa.csl")).toBe("<style/>");
+  });
 });

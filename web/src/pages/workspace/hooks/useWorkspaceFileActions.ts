@@ -198,7 +198,9 @@ export function useWorkspaceFileActions(input: UseWorkspaceFileActionsInput) {
         );
         const bytes = new Uint8Array(await item.file.arrayBuffer());
         if (!remainsCurrent()) return;
-        if (isTextFile(path) || item.file.type.startsWith("text/")) {
+        // Route by path so the document list and compiler see every text
+        // document; other files, whatever their MIME type, become assets.
+        if (isTextFile(path)) {
           const text = new TextDecoder().decode(bytes);
           await workspaceBackend.upsertText(
             operationProjectId,

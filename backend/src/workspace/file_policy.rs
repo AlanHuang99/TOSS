@@ -45,8 +45,8 @@ pub(crate) fn move_path_with_subtree(path: &str, from: &str, to: &str) -> Option
 pub(crate) fn is_document_text_path(path: &str) -> bool {
     let lower = path.to_ascii_lowercase();
     [
-        ".typ", ".tex", ".ltx", ".sty", ".cls", ".bst", ".bib", ".txt", ".md", ".json", ".toml",
-        ".yaml", ".yml", ".csv", ".xml", ".html", ".css", ".js", ".ts", ".tsx", ".jsx",
+        ".typ", ".tex", ".ltx", ".sty", ".cls", ".bst", ".bib", ".csl", ".txt", ".md", ".json",
+        ".toml", ".yaml", ".yml", ".csv", ".xml", ".html", ".css", ".js", ".ts", ".tsx", ".jsx",
     ]
     .iter()
     .any(|extension| lower.ends_with(extension))
@@ -101,6 +101,7 @@ mod tests {
     fn project_file_classification_is_explicit() {
         assert!(is_document_text_path("slides/main.typ"));
         assert!(is_document_text_path("refs/library.BIB"));
+        assert!(is_document_text_path("styles/apa.csl"));
         assert!(!is_document_text_path("figures/chart.png"));
         assert_eq!(guess_content_type("figure.svg"), "image/svg+xml");
         assert_eq!(guess_content_type("font.woff2"), "font/woff2");

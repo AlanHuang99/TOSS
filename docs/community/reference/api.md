@@ -199,6 +199,13 @@ permissions remain enforced by that path.
 - `PUT /v1/projects/{project_id}/documents/by-path/{path}`
 - `GET|PUT|DELETE /v1/projects/{project_id}/documents/{document_id}`
 
+Documents are UTF-8 text files whose path has a text extension such as `.typ`,
+`.tex`, `.bib`, `.csl`, `.md`, `.json`, or `.txt`; the same list decides what
+the document list, tree, and browser compiler treat as text. Creating or
+upserting a document at any other path returns `400` with
+`code: "project_document_path_unsupported"`; upload such files as assets. The
+Web upload flow chooses between documents and assets by path, not by MIME type.
+
 ## Assets and PDF artifacts
 
 - `GET|POST /v1/projects/{project_id}/assets`
