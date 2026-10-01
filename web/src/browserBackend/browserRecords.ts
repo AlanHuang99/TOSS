@@ -28,6 +28,8 @@ export type BrowserProjectSeed = {
 export type StoredBrowserProject = {
   id: string;
   name: string;
+  // Absent on records stored before descriptions were introduced.
+  description?: string | null;
   projectType: ProjectType;
   latexEngine: LatexEngine | null;
   entryFilePath: string;
@@ -71,6 +73,7 @@ export function toProject(record: StoredBrowserProject): Project {
     archived_at: record.archivedAt,
     can_read: true,
     created_at: record.createdAt,
+    description: record.description ?? null,
     has_thumbnail: record.hasThumbnail,
     id: record.id,
     is_template: record.isTemplate,

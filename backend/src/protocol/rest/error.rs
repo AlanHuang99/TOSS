@@ -47,6 +47,7 @@ pub enum ApiErrorCode {
     ProjectAssetTooLarge,
     ProjectContentChanged,
     ProjectContentEpochRequired,
+    ProjectDescriptionInvalid,
     ProjectDocumentChanged,
     ProjectDocumentNotFound,
     ProjectNameInvalid,

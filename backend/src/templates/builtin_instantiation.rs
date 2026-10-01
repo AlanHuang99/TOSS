@@ -203,6 +203,7 @@ pub(crate) async fn instantiate_builtin_template(
     Ok(Project {
         id: project_id,
         name: name.as_str().to_string(),
+        description: None,
         project_type: template.project_type,
         latex_engine,
         owner_user_id: Some(actor_user_id),

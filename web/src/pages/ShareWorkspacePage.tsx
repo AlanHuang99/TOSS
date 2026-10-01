@@ -135,6 +135,7 @@ export function ShareWorkspacePage({
             {
               id: resolved.projectId,
               name: resolved.projectName,
+              description: null,
               project_type: "typst",
               latex_engine: null,
               owner_user_id: null,

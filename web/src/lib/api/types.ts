@@ -145,6 +145,7 @@ export type CreateProjectCopyInput = ApiSchema<"CreateProjectCopyInput">;
 export type CreateBuiltinTemplateProjectInput =
   ApiSchema<"CreateBuiltinTemplateProjectInput">;
 export type UpdateProjectNameInput = ApiSchema<"UpdateProjectNameInput">;
+export type UpdateProjectDescriptionInput = ApiSchema<"UpdateProjectDescriptionInput">;
 export type UpdateProjectArchivedInput = ApiSchema<"UpdateProjectArchivedInput">;
 export type CreateProjectFileInput = ApiSchema<"CreateProjectFileInput">;
 export type MoveProjectFileInput = ApiSchema<"MoveProjectFileInput">;

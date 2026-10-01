@@ -215,6 +215,7 @@ pub(super) async fn copy_project(
     Ok(Project {
         id: new_project_id,
         name: command.name.as_str().to_string(),
+        description: None,
         project_type: source.project_type,
         latex_engine,
         owner_user_id: Some(command.actor_user_id),

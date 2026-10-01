@@ -5,6 +5,21 @@ use chrono::{DateTime, Utc};
 use sqlx::{PgConnection, PgPool, Row};
 use uuid::Uuid;
 
+pub(crate) async fn lock_repository_local_path(
+    connection: &mut PgConnection,
+    project_id: Uuid,
+) -> Result<Option<String>, sqlx::Error> {
+    sqlx::query_scalar(
+        "select local_path
+         from git_repositories
+         where project_id = $1
+         for update",
+    )
+    .bind(project_id)
+    .fetch_optional(connection)
+    .await
+}
+
 pub(crate) async fn load_live_sync_state(
     db: &PgPool,
     project_id: Uuid,

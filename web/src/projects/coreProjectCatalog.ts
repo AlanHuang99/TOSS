@@ -1,10 +1,12 @@
 import {
   copyProject,
   createProject,
+  deleteProject,
   listProjects,
   projectThumbnailUrl,
   renameProject,
   setProjectArchived,
+  updateProjectDescription,
   uploadProjectThumbnail,
 } from "@/lib/api";
 import type { ProjectCatalog } from "@/projects/projectCatalog";
@@ -14,7 +16,9 @@ export const coreProjectCatalog: ProjectCatalog = {
   create: createProject,
   copy: copyProject,
   rename: renameProject,
+  updateDescription: updateProjectDescription,
   setArchived: setProjectArchived,
+  delete: deleteProject,
   async loadThumbnail(project) {
     if (!project.has_thumbnail) return null;
     const response = await fetch(

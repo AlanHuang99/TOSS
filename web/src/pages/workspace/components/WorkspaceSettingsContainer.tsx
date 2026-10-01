@@ -1,5 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   getGitRepoLink,
   type AuthConfig,
@@ -23,6 +24,7 @@ import type {
   WorkspaceOptionalSettingsSectionDescriptor,
   WorkspaceSettingsSectionId,
 } from "@/pages/workspace/types";
+import { useProjectCatalog } from "@/projects/projectCatalog";
 import { useWorkspaceBackend } from "@/workspace/workspaceBackend";
 
 type WorkspaceSettingsContainerProps = {
@@ -71,6 +73,8 @@ export function WorkspaceSettingsContainer({
   t,
 }: WorkspaceSettingsContainerProps) {
   const workspaceBackend = useWorkspaceBackend();
+  const projectCatalog = useProjectCatalog();
+  const navigate = useNavigate();
   const {
     error: accessError,
     copiedControl,
@@ -140,6 +144,18 @@ export function WorkspaceSettingsContainer({
       });
     },
   });
+  const descriptionMutation = useMutation({
+    mutationFn: (description: string | null) =>
+      projectCatalog.updateDescription(project.id, description),
+    onSuccess: () => refreshProjects(),
+  });
+  const deleteMutation = useMutation({
+    mutationFn: () => projectCatalog.delete(project.id),
+    onSuccess: () => {
+      navigate("/projects", { replace: true });
+      void refreshProjects().catch(() => undefined);
+    },
+  });
   const typEntryOptions = useMemo(() => {
     const pattern = projection.projectType === "latex" ? /\.(tex|ltx)$/i : /\.typ$/i;
     const values = new Set<string>();
@@ -183,7 +199,14 @@ export function WorkspaceSettingsContainer({
       latexEngine,
     }).catch(() => undefined);
   };
-  const settingsMutationError = entryFileMutation.error ?? latexEngineMutation.error;
+  const saveDescription = async (description: string | null) => {
+    await descriptionMutation.mutateAsync(description).catch(() => undefined);
+  };
+  const deleteProject = async () => {
+    await deleteMutation.mutateAsync().catch(() => undefined);
+  };
+  const settingsMutationError =
+    entryFileMutation.error ?? latexEngineMutation.error ?? descriptionMutation.error;
   const settingsError = settingsMutationError
     ? errorMessage(settingsMutationError, t("errors.updateSettings"))
     : null;
@@ -193,6 +216,7 @@ export function WorkspaceSettingsContainer({
       width={width}
       projectId={project.id}
       projectName={project.name || "typst-project"}
+      projectDescription={project.description}
       projectType={projection.projectType}
       typstPreviewRenderer={preview.renderer}
       latexEngine={projection.latexEngine}
@@ -212,8 +236,17 @@ export function WorkspaceSettingsContainer({
       error={settingsError ?? accessError}
       entryFilePending={entryFileMutation.isPending}
       latexEnginePending={latexEngineMutation.isPending}
+      descriptionPending={descriptionMutation.isPending}
+      deletePending={deleteMutation.isPending}
+      deleteError={
+        deleteMutation.error
+          ? errorMessage(deleteMutation.error, t("projects.deleteFailed"))
+          : null
+      }
       onEntryFileChange={mutateEntryFile}
       onLatexEngineChange={mutateLatexEngine}
+      onSaveDescription={saveDescription}
+      onDeleteProject={deleteProject}
       onTypstPreviewRendererChange={preview.setRenderer}
       onCopyToClipboard={copyToClipboard}
       onToggleTemplate={() => setTemplateState(!templateEnabled)}

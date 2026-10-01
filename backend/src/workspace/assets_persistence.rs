@@ -211,6 +211,21 @@ pub(crate) async fn delete_at_path(
     )
 }
 
+pub(crate) async fn lock_project_object_keys(
+    connection: &mut PgConnection,
+    project_id: Uuid,
+) -> Result<Vec<String>, sqlx::Error> {
+    sqlx::query_scalar::<_, String>(
+        "select object_key
+         from project_assets
+         where project_id = $1
+         for update",
+    )
+    .bind(project_id)
+    .fetch_all(connection)
+    .await
+}
+
 pub(crate) async fn lock_object_keys_in_subtree(
     connection: &mut PgConnection,
     project_id: Uuid,

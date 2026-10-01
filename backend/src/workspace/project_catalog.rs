@@ -105,6 +105,7 @@ fn project_from_record(
     Project {
         id: record.id,
         name: record.name,
+        description: record.description,
         project_type: record.project_type,
         latex_engine: record.latex_engine,
         owner_user_id: record.owner_user_id,

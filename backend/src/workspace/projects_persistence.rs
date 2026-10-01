@@ -1,6 +1,6 @@
 //! Project catalog and basic-lifecycle persistence owned by Workspace.
 
-use super::{LatexEngine, ProjectName, ProjectType};
+use super::{LatexEngine, ProjectDescription, ProjectName, ProjectType};
 use chrono::{DateTime, Utc};
 use sqlx::postgres::PgRow;
 use sqlx::{FromRow, PgConnection, PgPool, Row};
@@ -9,6 +9,7 @@ use uuid::Uuid;
 pub(crate) struct ProjectListRecord {
     pub id: Uuid,
     pub name: String,
+    pub description: Option<String>,
     pub project_type: ProjectType,
     pub latex_engine: Option<LatexEngine>,
     pub owner_user_id: Option<Uuid>,
@@ -23,6 +24,7 @@ impl<'row> FromRow<'row, PgRow> for ProjectListRecord {
         Ok(Self {
             id: row.try_get("id")?,
             name: row.try_get("name")?,
+            description: row.try_get("description")?,
             project_type: row.try_get("project_type")?,
             latex_engine: row.try_get("latex_engine")?,
             owner_user_id: row.try_get("owner_user_id")?,
@@ -44,6 +46,7 @@ pub(crate) async fn list_for_user(
     sqlx::query_as::<_, ProjectListRecord>(
         "select p.id,
                 p.name,
+                p.description,
                 p.project_type,
                 settings.latex_engine,
                 p.owner_user_id,
@@ -90,4 +93,31 @@ pub(crate) async fn rename(
         .await?
         .rows_affected()
         > 0)
+}
+
+pub(crate) async fn update_description(
+    connection: &mut PgConnection,
+    project_id: Uuid,
+    description: &ProjectDescription,
+) -> Result<bool, sqlx::Error> {
+    Ok(
+        sqlx::query("update projects set description = $2 where id = $1")
+            .bind(project_id)
+            .bind(description.as_deref())
+            .execute(connection)
+            .await?
+            .rows_affected()
+            > 0,
+    )
+}
+
+/// Deletes the project row; every project-owned table cascades from it.
+pub(crate) async fn delete(
+    connection: &mut PgConnection,
+    project_id: Uuid,
+) -> Result<Option<String>, sqlx::Error> {
+    sqlx::query_scalar("delete from projects where id = $1 returning name")
+        .bind(project_id)
+        .fetch_optional(connection)
+        .await
 }

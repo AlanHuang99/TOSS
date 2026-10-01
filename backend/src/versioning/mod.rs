@@ -20,6 +20,7 @@ mod worktree_files;
 
 use chrono::{DateTime, Utc};
 use sqlx::PgConnection;
+use std::path::{Path, PathBuf};
 use uuid::Uuid;
 
 pub(crate) use authors::GitIdentity;
@@ -100,4 +101,26 @@ pub(crate) async fn initialize_project(
     project_id: Uuid,
 ) -> Result<(), sqlx::Error> {
     persistence::initialize_project(connection, project_id).await
+}
+
+/// Locks and returns the local repository path recorded for a project that is
+/// about to be deleted.
+pub(crate) async fn recorded_repository_path(
+    connection: &mut PgConnection,
+    project_id: Uuid,
+) -> Result<Option<PathBuf>, sqlx::Error> {
+    Ok(
+        git_persistence::lock_repository_local_path(connection, project_id)
+            .await?
+            .map(PathBuf::from),
+    )
+}
+
+/// Removes a deleted project's local repository. The caller holds the project
+/// lock from [`VersioningContext::acquire_project_lock`].
+pub(crate) async fn remove_project_repository(
+    project_id: Uuid,
+    recorded_path: Option<&Path>,
+) -> Result<(), std::io::Error> {
+    local_repository::remove_project_repository(project_id, recorded_path).await
 }

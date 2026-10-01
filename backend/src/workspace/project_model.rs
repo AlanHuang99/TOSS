@@ -17,6 +17,8 @@ text_enum! {
 pub(crate) struct Project {
     pub id: Uuid,
     pub name: String,
+    #[schema(required)]
+    pub description: Option<String>,
     pub project_type: ProjectType,
     #[schema(required)]
     pub latex_engine: Option<LatexEngine>,

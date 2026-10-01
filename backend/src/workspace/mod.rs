@@ -32,6 +32,8 @@ mod project_copy;
 mod project_copy_http;
 mod project_copy_persistence;
 mod project_creation;
+mod project_deletion;
+mod project_description;
 mod project_entry_point;
 mod project_file_creation;
 mod project_file_deletion;
@@ -107,6 +109,7 @@ pub(crate) use project_archive_http::download_project_archive;
 pub(crate) use project_archive_state_http::{update_project_archived, UpdateProjectArchivedInput};
 pub(crate) use project_assets::ProjectAsset;
 pub(crate) use project_copy_http::{copy_project, CreateProjectCopyInput};
+pub(crate) use project_description::{InvalidProjectDescription, ProjectDescription};
 pub(crate) use project_entry_point::{
     load_project_entry_point, LoadProjectEntryPointError, ProjectEntryPoint,
 };
@@ -127,8 +130,8 @@ pub(crate) use project_thumbnail_http::{
 pub(crate) use project_thumbnail_persistence::project_ids_with_thumbnails;
 pub(crate) use project_tree::ProjectTreeResponse;
 pub(crate) use projects_http::{
-    create_project, list_projects, update_project_name, CreateProjectInput, ProjectListResponse,
-    UpdateProjectNameInput,
+    create_project, delete_project, list_projects, update_project_description, update_project_name,
+    CreateProjectInput, ProjectListResponse, UpdateProjectDescriptionInput, UpdateProjectNameInput,
 };
 pub(crate) use revision_paths::{
     revision_path_snapshot, RevisionPathSnapshot, RevisionPathSnapshotError,

@@ -4,8 +4,8 @@ use crate::workspace::{
     Document, DocumentsResponse, MoveProjectFileInput, PdfArtifact, Project, ProjectAsset,
     ProjectAssetContentResponse, ProjectAssetListResponse, ProjectListResponse, ProjectSettings,
     ProjectTreeResponse, UpdateDocumentInput, UpdateProjectArchivedInput,
-    UpdateProjectEntryFileInput, UpdateProjectLatexEngineInput, UpdateProjectNameInput,
-    UploadAssetInput, UploadPdfArtifactInput, UploadProjectThumbnailInput,
+    UpdateProjectDescriptionInput, UpdateProjectEntryFileInput, UpdateProjectLatexEngineInput,
+    UpdateProjectNameInput, UploadAssetInput, UploadPdfArtifactInput, UploadProjectThumbnailInput,
     UpsertDocumentByPathInput,
 };
 
@@ -32,6 +32,21 @@ empty_operation!(
     "/v1/projects/{project_id}",
     "workspace",
     UpdateProjectNameInput,
+    204
+);
+empty_operation!(
+    delete_project,
+    delete,
+    "/v1/projects/{project_id}",
+    "workspace",
+    204
+);
+empty_operation!(
+    update_project_description,
+    patch,
+    "/v1/projects/{project_id}/description",
+    "workspace",
+    UpdateProjectDescriptionInput,
     204
 );
 json_operation!(

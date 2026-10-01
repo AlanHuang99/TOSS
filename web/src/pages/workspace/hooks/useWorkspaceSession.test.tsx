@@ -56,6 +56,7 @@ function project(
     archived_at: null,
     can_read: true,
     created_at: "2026-07-12T00:00:00Z",
+    description: null,
     has_thumbnail: false,
     id: projectId,
     is_template: false,

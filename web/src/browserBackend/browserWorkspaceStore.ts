@@ -79,6 +79,18 @@ function projectName(value: string) {
   return normalized;
 }
 
+function projectDescription(value: string | null) {
+  const normalized = value?.trim() ?? "";
+  if (!normalized) return null;
+  if (
+    Array.from(normalized).length > 2000 ||
+    /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/u.test(normalized)
+  ) {
+    throw new Error("project_description_invalid");
+  }
+  return normalized;
+}
+
 function ancestors(path: string) {
   const parts = path.split("/");
   const output: string[] = [];
@@ -375,6 +387,42 @@ export class BrowserWorkspaceStore {
       name: projectName(name),
       updatedAt: now(),
     }));
+  }
+
+  async updateProjectDescription(projectId: string, description: string | null) {
+    const normalized = projectDescription(description);
+    await this.updateProject(projectId, (project) => ({
+      ...project,
+      description: normalized,
+      updatedAt: now(),
+    }));
+  }
+
+  async deleteProject(projectId: string) {
+    await withBrowserTransaction(
+      [
+        browserStores.projects,
+        browserStores.documents,
+        browserStores.assets,
+        browserStores.thumbnails,
+      ],
+      "readwrite",
+      async (transaction) => {
+        const projects = transaction.objectStore(browserStores.projects);
+        const project = await getRecord<StoredBrowserProject>(projects, projectId);
+        if (!project) throw new Error("project_not_found");
+        const documentsStore = transaction.objectStore(browserStores.documents);
+        const assetsStore = transaction.objectStore(browserStores.assets);
+        const [documents, assets] = await Promise.all([
+          getAllByIndex<StoredBrowserDocument>(documentsStore, "projectId", projectId),
+          getAllByIndex<StoredBrowserAsset>(assetsStore, "projectId", projectId),
+        ]);
+        for (const document of documents) await deleteRecord(documentsStore, document.id);
+        for (const asset of assets) await deleteRecord(assetsStore, asset.id);
+        await deleteRecord(transaction.objectStore(browserStores.thumbnails), projectId);
+        await deleteRecord(projects, projectId);
+      },
+    );
   }
 
   async setArchived(projectId: string, archived: boolean) {

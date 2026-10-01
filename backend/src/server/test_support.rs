@@ -10,6 +10,7 @@ use axum::http::{header, HeaderMap, Method, Request, StatusCode};
 use axum::Router;
 use chrono::Utc;
 use sqlx::PgPool;
+use std::path::Path;
 use tempfile::TempDir;
 use tower::ServiceExt;
 use uuid::Uuid;
@@ -19,7 +20,7 @@ pub(crate) type TestError = Box<dyn std::error::Error + Send + Sync>;
 pub(crate) struct TestApp {
     pub router: Router,
     pub db: PgPool,
-    _data_dir: TempDir,
+    data_dir: TempDir,
 }
 
 pub(crate) struct TestResponse {
@@ -51,8 +52,56 @@ impl TestApp {
         Ok(Some(Self {
             router: build_router().with_state(state),
             db,
-            _data_dir: data_dir,
+            data_dir,
         }))
+    }
+
+    /// The application `DATA_DIR`, unique to this test.
+    pub(crate) fn data_dir(&self) -> &Path {
+        self.data_dir.path()
+    }
+
+    pub(crate) async fn grant_project_role(
+        &self,
+        project_id: Uuid,
+        user_id: Uuid,
+        role: &str,
+    ) -> Result<(), TestError> {
+        sqlx::query(
+            "insert into project_roles (project_id, user_id, role, granted_at)
+             values ($1, $2, $3, $4)",
+        )
+        .bind(project_id)
+        .bind(user_id)
+        .bind(role)
+        .bind(Utc::now())
+        .execute(&self.db)
+        .await?;
+        Ok(())
+    }
+
+    /// Creates a Typst project through the API and returns its identifier.
+    pub(crate) async fn create_project(
+        &self,
+        session: &str,
+        name: &str,
+    ) -> Result<Uuid, TestError> {
+        let response = self
+            .send(
+                Method::POST,
+                "/v1/projects",
+                Some(session),
+                Some(serde_json::json!({"name": name})),
+            )
+            .await?;
+        if response.status != StatusCode::OK {
+            return Err(format!("project creation failed: {:?}", response.body).into());
+        }
+        Ok(response
+            .field("id")
+            .as_str()
+            .ok_or("project response has no id")?
+            .parse()?)
     }
 
     pub(crate) async fn insert_user(&self, label: &str) -> Result<Uuid, TestError> {

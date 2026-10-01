@@ -132,6 +132,7 @@ pub(super) async fn create_project(
     Ok(Project {
         id: project_id,
         name: command.name.as_str().to_string(),
+        description: None,
         project_type: command.project_type,
         latex_engine,
         owner_user_id: Some(command.actor_user_id),

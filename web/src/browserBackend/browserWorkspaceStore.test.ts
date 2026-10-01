@@ -28,6 +28,55 @@ afterEach(() => {
 });
 
 describe("BrowserWorkspaceStore", () => {
+  it("updates descriptions and deletes a project with its records", async () => {
+    const { events, store } = createStore();
+    openedEvents.push(events);
+    const project = await store.createSeededProject("Removable", typstSeed());
+    const kept = await store.createSeededProject("Kept", typstSeed());
+    const asset = await store.uploadAsset(project.id, {
+      path: "images/pixel.bin",
+      content_base64: "AQID",
+      content_type: "application/octet-stream",
+    });
+    await store.saveThumbnail(project.id, {
+      content_base64: "AQID",
+      content_type: "image/webp",
+    });
+
+    expect(project.description).toBeNull();
+    await store.updateProjectDescription(project.id, "  Lecture notes  ");
+    expect(
+      (await store.listProjects()).find((candidate) => candidate.id === project.id)
+        ?.description,
+    ).toBe("Lecture notes");
+    await store.updateProjectDescription(project.id, "  ");
+    expect(
+      (await store.listProjects()).find((candidate) => candidate.id === project.id)
+        ?.description,
+    ).toBeNull();
+    await expect(
+      store.updateProjectDescription(project.id, "x".repeat(2001)),
+    ).rejects.toThrow("project_description_invalid");
+
+    await store.deleteProject(project.id);
+
+    const remaining = (await store.listProjects()).map((candidate) => candidate.id);
+    expect(remaining).toContain(kept.id);
+    expect(remaining).not.toContain(project.id);
+    await expect(
+      store.loadBootstrap({
+        projectId: project.id,
+        projectTypeHint: "typst",
+        canWrite: true,
+      }),
+    ).rejects.toThrow("project_not_found");
+    await expect(store.readAsset(project.id, asset.id)).rejects.toThrow(
+      "project_asset_not_found",
+    );
+    expect(await store.loadThumbnail(project.id)).toBeNull();
+    await expect(store.deleteProject(project.id)).rejects.toThrow("project_not_found");
+  });
+
   it("persists projects, structural changes, assets, and portable archives", async () => {
     const { events, store } = createStore();
     openedEvents.push(events);

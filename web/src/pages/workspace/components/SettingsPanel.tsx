@@ -6,11 +6,13 @@ import {
   Copy,
   Cpu,
   Database,
+  FileText,
   GitBranch,
   LayoutTemplate,
   Link2,
   Settings2,
   Share2,
+  Trash2,
   UserRound,
   UsersRound
 } from "lucide-react";
@@ -22,6 +24,7 @@ import {
   UiIconButton,
   UiSectionHeading,
   UiSelect,
+  UiTextarea,
   UiTooltip
 } from "@/components/ui";
 import type {
@@ -40,9 +43,11 @@ import type {
   WorkspaceOptionalSettingsSectionDescriptor,
   WorkspaceSettingsSectionId
 } from "@/pages/workspace/types";
+import { ProjectDeleteDialog } from "@/pages/projects/ProjectDeleteDialog";
 import { ExternalGitSettingsCard } from "./ExternalGitSettingsCard";
 
 const SETTINGS_SECTION_STORAGE_KEY = "toss.workspace-settings-section";
+const PROJECT_DESCRIPTION_MAX_CHARS = 2000;
 
 function readStoredSettingsSection(): string | null {
   try {
@@ -127,6 +132,7 @@ export function SettingsPanel({
   width,
   projectId,
   projectName,
+  projectDescription,
   projectType,
   typstPreviewRenderer,
   latexEngine,
@@ -146,8 +152,13 @@ export function SettingsPanel({
   error,
   entryFilePending,
   latexEnginePending,
+  descriptionPending,
+  deletePending,
+  deleteError,
   onEntryFileChange,
   onLatexEngineChange,
+  onSaveDescription,
+  onDeleteProject,
   onTypstPreviewRendererChange,
   onCopyToClipboard,
   onToggleTemplate,
@@ -167,6 +178,7 @@ export function SettingsPanel({
   width: number;
   projectId: string;
   projectName: string;
+  projectDescription: string | null;
   projectType: "typst" | "latex";
   typstPreviewRenderer: "pdf" | "canvas";
   latexEngine: "pdftex" | "xetex";
@@ -186,8 +198,13 @@ export function SettingsPanel({
   error: string | null;
   entryFilePending: boolean;
   latexEnginePending: boolean;
+  descriptionPending: boolean;
+  deletePending: boolean;
+  deleteError: string | null;
   onEntryFileChange: (path: string) => Promise<void>;
   onLatexEngineChange: (engine: "pdftex" | "xetex") => Promise<void>;
+  onSaveDescription: (description: string | null) => Promise<void>;
+  onDeleteProject: () => Promise<void>;
   onTypstPreviewRendererChange: (mode: "pdf" | "canvas") => void;
   onCopyToClipboard: (controlKey: string, value: string) => Promise<void>;
   onToggleTemplate: () => Promise<void>;
@@ -245,6 +262,16 @@ export function SettingsPanel({
     storeSettingsSection(activeSection);
   }, [activeSection]);
 
+  const [descriptionDraft, setDescriptionDraft] = useState(projectDescription ?? "");
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  useEffect(() => {
+    setDescriptionDraft(projectDescription ?? "");
+  }, [projectDescription]);
+  const normalizedDescription = descriptionDraft.trim();
+  const descriptionTooLong =
+    Array.from(normalizedDescription).length > PROJECT_DESCRIPTION_MAX_CHARS;
+  const descriptionChanged = normalizedDescription !== (projectDescription ?? "");
+
   return (
     <aside className="panel panel-settings" style={{ width }}>
       <div className="panel-header">
@@ -279,6 +306,35 @@ export function SettingsPanel({
             role="tabpanel"
             aria-labelledby="settings-tab-project"
           >
+            <UiCard className="settings-section-card" contentLayout="column gap:md pad:md align:horizontal-stretch">
+              <UiSectionHeading
+                icon={<FileText size={18} aria-hidden />}
+                title={t("settings.projectDetails")}
+                actions={<UiHelpTooltip content={t("settings.descriptionHint")} />}
+              />
+              <UiTextarea
+                label={t("settings.description")}
+                value={descriptionDraft}
+                rows={3}
+                placeholder={canManageProject ? t("settings.descriptionPlaceholder") : undefined}
+                disabled={!canManageProject || descriptionPending}
+                onChange={(event) => setDescriptionDraft(event.target.value)}
+                error={descriptionTooLong ? t("settings.descriptionTooLong") : undefined}
+              />
+              {canManageProject && (
+                <div className="settings-description-actions">
+                  <UiButton
+                    size="sm"
+                    variant="primary"
+                    disabled={!descriptionChanged || descriptionTooLong || descriptionPending}
+                    onClick={() => void onSaveDescription(normalizedDescription || null)}
+                  >
+                    {t("common.save")}
+                  </UiButton>
+                </div>
+              )}
+            </UiCard>
+
             <UiCard className="settings-section-card" contentLayout="column gap:md pad:md align:horizontal-stretch">
               <UiSectionHeading
                 icon={<Cpu size={18} aria-hidden />}
@@ -366,6 +422,28 @@ export function SettingsPanel({
                 </UiButton>
               </div>
             </UiCard>
+
+            {canManageProject && (
+              <UiCard className="settings-section-card" contentLayout="column gap:md pad:md align:horizontal-stretch">
+                <UiSectionHeading
+                  icon={<Trash2 size={18} aria-hidden />}
+                  title={t("settings.deleteTitle")}
+                />
+                <div className="settings-toggle-row">
+                  <span>
+                    <small>{t("settings.deleteHint")}</small>
+                  </span>
+                  <UiButton
+                    size="sm"
+                    variant="danger"
+                    disabled={deletePending}
+                    onClick={() => setDeleteDialogOpen(true)}
+                  >
+                    {t("projects.delete")}
+                  </UiButton>
+                </div>
+              </UiCard>
+            )}
           </div>
         )}
 
@@ -521,6 +599,15 @@ export function SettingsPanel({
             </UiCard>
           </div>
         )}
+        <ProjectDeleteDialog
+          open={deleteDialogOpen}
+          projectName={projectName}
+          pending={deletePending}
+          error={deleteError}
+          onCancel={() => setDeleteDialogOpen(false)}
+          onConfirm={onDeleteProject}
+          t={t}
+        />
         {optionalSections.map((section) => activeSection === section.section && (
           <div
             className="settings-tab-panel"

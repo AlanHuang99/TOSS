@@ -50,6 +50,33 @@ pub(super) fn project_repository_path(project_id: Uuid) -> PathBuf {
     storage_root().join(project_id.to_string())
 }
 
+/// Removes the repository directories of a deleted project: the recorded
+/// local path and the path derived from the current storage root. Only
+/// directories named after the project are touched.
+pub(super) async fn remove_project_repository(
+    project_id: Uuid,
+    recorded_path: Option<&Path>,
+) -> Result<(), std::io::Error> {
+    let directory_name = project_id.to_string();
+    let mut paths = vec![project_repository_path(project_id)];
+    if let Some(recorded_path) = recorded_path {
+        if !paths.iter().any(|path| path == recorded_path) {
+            paths.push(recorded_path.to_path_buf());
+        }
+    }
+    for path in paths {
+        if path.file_name().and_then(|name| name.to_str()) != Some(directory_name.as_str()) {
+            continue;
+        }
+        match tokio::fs::remove_dir_all(&path).await {
+            Ok(()) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => return Err(error),
+        }
+    }
+    Ok(())
+}
+
 pub(super) fn ensure_initialized(
     repository_path: &str,
     default_branch: &str,

@@ -81,7 +81,9 @@ const projectCatalog: ProjectCatalog = {
   create: vi.fn(),
   copy: vi.fn(),
   rename: vi.fn(),
+  updateDescription: vi.fn(),
   setArchived: vi.fn(),
+  delete: vi.fn(),
   loadThumbnail: vi.fn(),
   saveThumbnail: vi.fn(),
 };

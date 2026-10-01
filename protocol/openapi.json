@@ -1691,6 +1691,27 @@
           }
         }
       ],
+      "delete": {
+        "tags": [
+          "workspace"
+        ],
+        "operationId": "delete_project",
+        "responses": {
+          "204": {
+            "description": "Successful response"
+          },
+          "default": {
+            "description": "Error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
       "patch": {
         "tags": [
           "workspace"
@@ -1701,6 +1722,49 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/UpdateProjectNameInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful response"
+          },
+          "default": {
+            "description": "Error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/projects/{project_id}/description": {
+      "parameters": [
+        {
+          "name": "project_id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "patch": {
+        "tags": [
+          "workspace"
+        ],
+        "operationId": "update_project_description",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProjectDescriptionInput"
               }
             }
           },
@@ -5128,6 +5192,7 @@
           "project_asset_too_large",
           "project_content_changed",
           "project_content_epoch_required",
+          "project_description_invalid",
           "project_document_changed",
           "project_document_not_found",
           "project_name_invalid",
@@ -7473,6 +7538,7 @@
         "required": [
           "id",
           "name",
+          "description",
           "project_type",
           "latex_engine",
           "owner_user_id",
@@ -7493,6 +7559,12 @@
           },
           "name": {
             "type": "string"
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "project_type": {
             "$ref": "#/components/schemas/ProjectType"
@@ -8938,6 +9010,20 @@
         "properties": {
           "archived": {
             "type": "boolean"
+          }
+        }
+      },
+      "UpdateProjectDescriptionInput": {
+        "type": "object",
+        "required": [
+          "description"
+        ],
+        "properties": {
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
       },

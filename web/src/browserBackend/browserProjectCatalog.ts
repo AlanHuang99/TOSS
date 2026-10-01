@@ -27,8 +27,16 @@ export class BrowserProjectCatalog implements ProjectCatalog {
     return this.store.renameProject(projectId, name);
   }
 
+  updateDescription(projectId: string, description: string | null) {
+    return this.store.updateProjectDescription(projectId, description);
+  }
+
   setArchived(projectId: string, archived: boolean) {
     return this.store.setArchived(projectId, archived);
+  }
+
+  delete(projectId: string) {
+    return this.store.deleteProject(projectId);
   }
 
   loadThumbnail(project: Parameters<ProjectCatalog["loadThumbnail"]>[0]) {

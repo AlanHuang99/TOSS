@@ -146,13 +146,28 @@ Malformed or unknown events are ignored by the browser.
 - `GET|POST /v1/organizations`
 - `GET /v1/organizations/mine`
 - `GET|POST /v1/projects`
-- `PATCH /v1/projects/{project_id}`
+- `PATCH|DELETE /v1/projects/{project_id}`
+- `PATCH /v1/projects/{project_id}/description`
 - `POST /v1/projects/{project_id}/copy`
 - `GET|PATCH /v1/projects/{project_id}/archive`
 - `GET|PUT /v1/projects/{project_id}/thumbnail`
 
 `POST /v1/projects` and project copy enforce the active distribution's
 `enabled_project_types`. A Typst-only distribution accepts only Typst projects.
+
+Project responses include a nullable `description`. The owner sets it with
+`PATCH /v1/projects/{project_id}/description` and
+`{ "description": string | null }`; the value is trimmed, an empty value clears
+it, and more than 2000 characters returns `400` with
+`code: "project_description_invalid"`. New projects and copies start without a
+description.
+
+`DELETE /v1/projects/{project_id}` is owner-only and returns `204`. It removes
+the project for every member together with its documents, assets, revisions,
+settings, grants, share links, processing jobs, local Git repository, and
+thumbnail; stored asset objects are deleted or queued for deletion. Open
+editors receive `access.changed`. A linked external Git repository is not
+changed on its provider. Archiving remains the per-user way to hide a project.
 
 ## Template gallery
 

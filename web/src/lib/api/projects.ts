@@ -17,6 +17,7 @@ import type {
   ProjectListResponse,
   TemplateGalleryResponse,
   UpdateProjectArchivedInput,
+  UpdateProjectDescriptionInput,
   UpdateProjectNameInput
 } from "@/lib/api/types";
 
@@ -89,6 +90,29 @@ export async function renameProject(projectId: string, name: string) {
     body: JSON.stringify(input)
   });
   if (!response.ok) await throwApiError(response, "api.renameProject");
+}
+
+export async function updateProjectDescription(
+  projectId: string,
+  description: string | null
+) {
+  const input: UpdateProjectDescriptionInput = { description };
+  const response = await fetch(apiUrl(`/v1/projects/${projectId}/description`), {
+    method: "PATCH",
+    credentials: authCredentials(),
+    headers: authHeaders({ "content-type": "application/json" }),
+    body: JSON.stringify(input)
+  });
+  if (!response.ok) await throwApiError(response, "api.updateProjectDescription");
+}
+
+export async function deleteProject(projectId: string) {
+  const response = await fetch(apiUrl(`/v1/projects/${projectId}`), {
+    method: "DELETE",
+    credentials: authCredentials(),
+    headers: authHeaders()
+  });
+  if (!response.ok) await throwApiError(response, "api.deleteProject");
 }
 
 export async function setProjectArchived(projectId: string, archived: boolean) {

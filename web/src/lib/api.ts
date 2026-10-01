@@ -41,12 +41,14 @@ export {
   createOrganization,
   createProject,
   createProjectFromBuiltinTemplate,
+  deleteProject,
   listMyOrganizations,
   listOrganizations,
   listProjects,
   listTemplateGallery,
   renameProject,
-  setProjectArchived
+  setProjectArchived,
+  updateProjectDescription
 } from "@/lib/api/projects";
 
 export {

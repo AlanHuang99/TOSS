@@ -112,6 +112,11 @@ nve-button.project-title-cell {
   gap: 6px;
 }
 
+.project-delete-action:not([aria-disabled="true"]):hover {
+  --color: var(--toss-danger);
+  --background: var(--toss-danger-surface);
+}
+
 .project-owner-cell,
 .project-edited-cell {
   min-width: 0;

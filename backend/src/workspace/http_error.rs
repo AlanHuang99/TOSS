@@ -1,6 +1,6 @@
 //! Shared HTTP representation for Workspace-wide policy and unexpected failures.
 
-use super::{InvalidProjectName, InvalidProjectPath};
+use super::{InvalidProjectDescription, InvalidProjectName, InvalidProjectPath};
 use crate::http_response::ApiError;
 use crate::protocol::ApiErrorCode;
 use axum::http::StatusCode;
@@ -21,6 +21,16 @@ impl From<InvalidProjectName> for ApiError {
             StatusCode::BAD_REQUEST,
             ApiErrorCode::ProjectNameInvalid,
             "Project name is invalid",
+        )
+    }
+}
+
+impl From<InvalidProjectDescription> for ApiError {
+    fn from(_source: InvalidProjectDescription) -> Self {
+        Self::new(
+            StatusCode::BAD_REQUEST,
+            ApiErrorCode::ProjectDescriptionInvalid,
+            "Project description must contain at most 2000 characters",
         )
     }
 }

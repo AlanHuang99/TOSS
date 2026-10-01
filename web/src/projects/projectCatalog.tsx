@@ -17,7 +17,9 @@ export interface ProjectCatalog {
   create(input: CreateProjectInput): Promise<Project>;
   copy(projectId: string, input: CreateProjectCopyInput): Promise<Project>;
   rename(projectId: string, name: string): Promise<void>;
+  updateDescription(projectId: string, description: string | null): Promise<void>;
   setArchived(projectId: string, archived: boolean): Promise<void>;
+  delete(projectId: string): Promise<void>;
   loadThumbnail(project: Project): Promise<Blob | null>;
   saveThumbnail(
     projectId: string,

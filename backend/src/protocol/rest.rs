@@ -187,6 +187,8 @@ pub use external_repositories::ExternalGitCheckpointResponse;
         workspace::list_projects,
         workspace::create_project,
         workspace::rename_project,
+        workspace::delete_project,
+        workspace::update_project_description,
         processing::create_latex_pdf_build,
         processing::create_typst_pptx_export,
         processing::create_pptx_import,

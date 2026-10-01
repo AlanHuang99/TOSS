@@ -46,13 +46,14 @@ use crate::versioning::{
 };
 use crate::workspace::{
     copy_project, create_document, create_project, create_project_file, delete_document,
-    delete_project_asset, delete_project_file, download_latest_project_pdf_artifact,
-    download_project_archive, get_document, get_project_asset, get_project_asset_raw,
-    get_project_settings, get_project_thumbnail, get_project_tree, list_documents,
-    list_project_assets, list_projects, move_project_file, update_document,
-    update_project_archived, update_project_entry_file, update_project_latex_engine,
-    update_project_name, upload_project_asset, upload_project_pdf_artifact,
-    upload_project_thumbnail, upsert_document_by_path,
+    delete_project, delete_project_asset, delete_project_file,
+    download_latest_project_pdf_artifact, download_project_archive, get_document,
+    get_project_asset, get_project_asset_raw, get_project_settings, get_project_thumbnail,
+    get_project_tree, list_documents, list_project_assets, list_projects, move_project_file,
+    update_document, update_project_archived, update_project_description,
+    update_project_entry_file, update_project_latex_engine, update_project_name,
+    upload_project_asset, upload_project_pdf_artifact, upload_project_thumbnail,
+    upsert_document_by_path,
 };
 use axum::middleware;
 use axum::routing::{any, delete, get, patch, post, put};
@@ -180,7 +181,14 @@ pub(super) fn build_router() -> Router<AppState> {
             post(create_project_from_builtin_template),
         )
         .route("/v1/projects", get(list_projects).post(create_project))
-        .route("/v1/projects/{project_id}", patch(update_project_name))
+        .route(
+            "/v1/projects/{project_id}",
+            patch(update_project_name).delete(delete_project),
+        )
+        .route(
+            "/v1/projects/{project_id}/description",
+            patch(update_project_description),
+        )
         .route(
             "/v1/projects/{project_id}/builds",
             post(create_latex_pdf_build),

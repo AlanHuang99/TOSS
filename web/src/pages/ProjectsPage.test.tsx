@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type {
   ButtonHTMLAttributes,
   InputHTMLAttributes,
@@ -11,7 +11,7 @@ import type {
 import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createProject, type Project } from "@/lib/api";
+import { createProject, deleteProject, type Project } from "@/lib/api";
 import type { Translator } from "@/lib/i18n";
 import { ProjectsPage } from "@/pages/ProjectsPage";
 import { ApplicationRuntimeProvider } from "@/composition/applicationRuntime";
@@ -20,12 +20,14 @@ import { createTestApplicationRuntime } from "@/testSupport/applicationRuntime";
 
 vi.mock("@/lib/api", () => ({
   copyProject: vi.fn(),
+  deleteProject: vi.fn(),
   getProcessingCapabilities: vi.fn(),
   createProject: vi.fn(),
   listProjects: vi.fn(),
   projectThumbnailUrl: vi.fn(),
   renameProject: vi.fn(),
   setProjectArchived: vi.fn(),
+  updateProjectDescription: vi.fn(),
   uploadProjectThumbnail: vi.fn()
 }));
 
@@ -42,11 +44,12 @@ vi.mock("@/components/ui", () => ({
   UiCard: ({ children }: PropsWithChildren) => <div>{children}</div>,
   UiDialog: ({
     open,
+    title,
     children,
     actions
-  }: PropsWithChildren<{ open: boolean; actions?: ReactNode }>) =>
+  }: PropsWithChildren<{ open: boolean; title?: string; actions?: ReactNode }>) =>
     open ? (
-      <div>
+      <div role="dialog" aria-label={title}>
         {children}
         {actions}
       </div>
@@ -107,6 +110,7 @@ const existingProject: Project = {
   archived_at: null,
   can_read: true,
   created_at: "2026-07-13T00:00:00Z",
+  description: null,
   has_thumbnail: false,
   id: "project-a",
   is_template: false,
@@ -119,7 +123,10 @@ const existingProject: Project = {
   project_type: "typst"
 };
 
-function renderPage(projects: Project[] = []) {
+function renderPage(
+  projects: Project[] = [],
+  refreshProjects = vi.fn().mockResolvedValue(undefined)
+) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } }
   });
@@ -134,7 +141,7 @@ function renderPage(projects: Project[] = []) {
             organizations={[]}
             enabledProjectTypes={["typst"]}
             externalGitProviders={[]}
-            refreshProjects={vi.fn().mockResolvedValue(undefined)}
+            refreshProjects={refreshProjects}
             locale="en"
             t={t}
           />
@@ -169,5 +176,43 @@ describe("ProjectsPage", () => {
     expect(createProject).not.toHaveBeenCalled();
     expect(screen.getByRole("alert").textContent).toBe("projects.nameDuplicate");
     expect(document.activeElement).toBe(nameInput);
+  });
+
+  it("offers deletion only to owners", () => {
+    renderPage([
+      existingProject,
+      {
+        ...existingProject,
+        id: "project-b",
+        my_role: "ReadWrite",
+        name: "shared-notes"
+      }
+    ]);
+
+    expect(screen.getAllByRole("button", { name: "projects.delete" })).toHaveLength(1);
+  });
+
+  it("deletes a project only after its name is typed", async () => {
+    vi.mocked(deleteProject).mockResolvedValue(undefined);
+    const refreshProjects = vi.fn().mockResolvedValue(undefined);
+    renderPage([existingProject], refreshProjects);
+
+    fireEvent.click(screen.getByRole("button", { name: "projects.delete" }));
+    const dialog = screen.getByRole("dialog", { name: "projects.deleteDialogTitle" });
+    const confirm = within(dialog).getByRole("button", { name: "projects.deleteAction" });
+    const confirmation = within(dialog).getByLabelText("projects.deleteConfirmLabel");
+    expect(confirm.hasAttribute("disabled")).toBe(true);
+
+    fireEvent.change(confirmation, { target: { value: "quarterly" } });
+    fireEvent.click(confirm);
+    expect(deleteProject).not.toHaveBeenCalled();
+
+    fireEvent.change(confirmation, { target: { value: "quarterly-review" } });
+    expect(confirm.hasAttribute("disabled")).toBe(false);
+    fireEvent.click(confirm);
+
+    await waitFor(() => expect(deleteProject).toHaveBeenCalledWith("project-a"));
+    await waitFor(() => expect(refreshProjects).toHaveBeenCalled());
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 });

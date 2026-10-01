@@ -9,7 +9,8 @@ import {
   FileUp,
   LayoutTemplate,
   Pencil,
-  Plus
+  Plus,
+  Trash2
 } from "lucide-react";
 import { ProviderBrandMark } from "@/components/ProviderBrandMark";
 import {
@@ -33,6 +34,7 @@ import { formatDateTime, type Translator, type UiLocale } from "@/lib/i18n";
 import type { ProjectType } from "@/lib/deploymentCapabilities";
 import type { ProjectCopyDialogState, ProjectRenameDialogState } from "@/types/project-ui";
 import { ExternalGitImportDialog } from "@/pages/projects/ExternalGitImportDialog";
+import { ProjectDeleteDialog } from "@/pages/projects/ProjectDeleteDialog";
 import { PptxImportDialog } from "@/pages/projects/PptxImportDialog";
 import { usePptxImport } from "@/pages/processing/usePptxImport";
 import { useProjectCatalog } from "@/projects/projectCatalog";
@@ -92,6 +94,7 @@ type ProjectRowProps = {
   onOpenRenameDialog: (project: Project) => void;
   onOpenCopyDialog: (project: Project) => void;
   onToggleProjectArchived: (project: Project) => Promise<void>;
+  onOpenDeleteDialog: (project: Project) => void;
   showProjectType: boolean;
   locale: UiLocale;
   t: Translator;
@@ -104,6 +107,7 @@ function ProjectRow({
   onOpenRenameDialog,
   onOpenCopyDialog,
   onToggleProjectArchived,
+  onOpenDeleteDialog,
   showProjectType,
   locale,
   t
@@ -173,6 +177,17 @@ function ProjectRow({
         >
           <Archive size={16} />
         </UiIconButton>
+        {project.my_role === "Owner" && (
+          <UiIconButton
+            tooltip={t("projects.delete")}
+            label={t("projects.delete")}
+            className="project-delete-action"
+            disabled={busyProjectId === project.id}
+            onClick={() => onOpenDeleteDialog(project)}
+          >
+            <Trash2 size={16} />
+          </UiIconButton>
+        )}
       </div>
     </div>
   );
@@ -297,6 +312,9 @@ export function ProjectsPage({
   const [copyBusy, setCopyBusy] = useState(false);
   const [renameDialog, setRenameDialog] = useState<ProjectRenameDialogState | null>(null);
   const [renameBusy, setRenameBusy] = useState(false);
+  const [deleteCandidate, setDeleteCandidate] = useState<Project | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [externalGitImportDialogOpen, setExternalGitImportDialogOpen] = useState(false);
   const [pptxImportDialogOpen, setPptxImportDialogOpen] = useState(false);
@@ -377,6 +395,26 @@ export function ProjectsPage({
       sourceName: project.name,
       suggestedName: `${project.name} ${t("projects.copySuffix")}`
     });
+  }
+
+  function openDeleteDialog(project: Project) {
+    setDeleteError(null);
+    setDeleteCandidate(project);
+  }
+
+  async function deleteCandidateProject() {
+    if (!deleteCandidate) return;
+    try {
+      setDeleteBusy(true);
+      setDeleteError(null);
+      await projectCatalog.delete(deleteCandidate.id);
+      setDeleteCandidate(null);
+      await refreshProjects();
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : t("projects.deleteFailed"));
+    } finally {
+      setDeleteBusy(false);
+    }
   }
 
   async function toggleProjectArchived(project: Project) {
@@ -578,6 +616,7 @@ export function ProjectsPage({
               onOpenRenameDialog={openRenameDialog}
               onOpenCopyDialog={openCopyDialog}
               onToggleProjectArchived={toggleProjectArchived}
+              onOpenDeleteDialog={openDeleteDialog}
               showProjectType={showProjectType}
               locale={locale}
               t={t}
@@ -642,6 +681,15 @@ export function ProjectsPage({
           placeholder={t("projects.namePlaceholder")}
         />
       </UiDialog>
+      <ProjectDeleteDialog
+        open={!!deleteCandidate}
+        projectName={deleteCandidate?.name ?? ""}
+        pending={deleteBusy}
+        error={deleteError}
+        onCancel={() => setDeleteCandidate(null)}
+        onConfirm={deleteCandidateProject}
+        t={t}
+      />
       {error && (
         <nve-alert status="danger" role="alert">
           <span>{error}</span>

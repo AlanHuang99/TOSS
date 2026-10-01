@@ -197,6 +197,18 @@ async fn read_project_thumbnail_bytes(
     }
 }
 
+/// Removes the stored thumbnail of a deleted project; its metadata row
+/// cascades with the project.
+pub(crate) async fn remove_project_thumbnail_file(
+    data_dir: &Path,
+    project_id: Uuid,
+) -> Result<(), std::io::Error> {
+    match tokio::fs::remove_file(project_thumbnail_path(data_dir, project_id)).await {
+        Err(error) if error.kind() != std::io::ErrorKind::NotFound => Err(error),
+        _ => Ok(()),
+    }
+}
+
 fn project_thumbnail_path(data_dir: &Path, project_id: Uuid) -> PathBuf {
     data_dir
         .join("thumbnails")

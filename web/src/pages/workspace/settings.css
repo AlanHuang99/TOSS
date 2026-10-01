@@ -130,6 +130,11 @@
   gap: 6px;
 }
 
+.settings-description-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .settings-toggle-row {
   min-width: 0;
   display: grid;
