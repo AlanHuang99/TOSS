@@ -186,6 +186,7 @@ export function ShareWorkspacePage({
         t={t}
         onLocaleChange={onLocaleChange}
         showLocaleSwitcher={false}
+        returnTo={`/share/${encodeURIComponent(token)}`}
         onSignedIn={onSignedIn}
       />
     );

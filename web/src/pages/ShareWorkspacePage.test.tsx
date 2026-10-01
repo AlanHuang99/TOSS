@@ -19,7 +19,9 @@ vi.mock("@/lib/api", () => ({
 }));
 
 vi.mock("@/pages/SignInPage", () => ({
-  SignInPage: () => <div data-testid="sign-in" />
+  SignInPage: ({ returnTo }: { returnTo?: string }) => (
+    <div data-testid="sign-in" data-return-to={returnTo} />
+  )
 }));
 
 vi.mock("@/pages/WorkspacePage", () => ({
@@ -101,5 +103,35 @@ describe("ShareWorkspacePage", () => {
       expect(joinProjectShareLink).toHaveBeenCalledOnce();
       expect(refreshProjects).toHaveBeenCalledOnce();
     });
+  });
+
+  it("returns a signed-out visitor to the invitation after signing in", async () => {
+    vi.mocked(resolveProjectShareLink).mockResolvedValue({
+      anonymous_mode: "off",
+      is_template: false,
+      permission: "write",
+      project_id: "project-a",
+      project_name: "project-a"
+    });
+
+    render(
+      <ShareWorkspacePage
+        authUser={null}
+        authConfig={null}
+        projects={[]}
+        organizations={[]}
+        refreshProjects={vi.fn().mockResolvedValue(undefined)}
+        locale="en"
+        t={t}
+        onLocaleChange={vi.fn()}
+        onSignedIn={vi.fn().mockResolvedValue(undefined)}
+        onLogoutFromWorkspace={vi.fn().mockResolvedValue(undefined)}
+      />,
+      { wrapper: wrapper() }
+    );
+
+    const signIn = await screen.findByTestId("sign-in");
+    expect(signIn.getAttribute("data-return-to")).toBe("/share/token-a");
+    expect(joinProjectShareLink).not.toHaveBeenCalled();
   });
 });
