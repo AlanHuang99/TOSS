@@ -168,13 +168,17 @@ function createQueryClient() {
   });
 }
 
-function renderProfile(queryClient = createQueryClient()) {
+function renderProfile(
+  queryClient = createQueryClient(),
+  sourceCodeUrl: string | null = null
+) {
   return render(
     <MemoryRouter initialEntries={["/profile"]}>
       <QueryClientProvider client={queryClient}>
         <ProfilePage
           authUser={authUser}
           externalGitProviders={[provider]}
+          sourceCodeUrl={sourceCodeUrl}
           locale="en"
           t={t}
         />
@@ -348,5 +352,19 @@ describe("ProfilePage", () => {
     );
     expect(within(scopes).getByText("profile.scopeGit")).toBeTruthy();
     expect(within(scopes).getByText("profile.scopeApi")).toBeTruthy();
+  });
+
+  it("links to the configured source code", () => {
+    vi.mocked(getExternalGitConnectionStatus).mockResolvedValue(connection(null));
+    vi.mocked(listPersonalAccessTokens).mockResolvedValue({ tokens: [] });
+
+    const { unmount } = renderProfile();
+    expect(screen.queryByRole("link", { name: "common.sourceCode" })).toBeNull();
+    unmount();
+
+    renderProfile(createQueryClient(), "https://git.example.test/toss");
+    expect(
+      screen.getByRole("link", { name: "common.sourceCode" }).getAttribute("href")
+    ).toBe("https://git.example.test/toss");
   });
 });

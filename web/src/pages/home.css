@@ -321,3 +321,11 @@
     transform: none;
   }
 }
+
+.home-footer {
+  margin-top: 48px;
+  padding-top: 16px;
+  display: flex;
+  justify-content: center;
+  border-top: var(--toss-border-width) solid var(--toss-border-subtle);
+}

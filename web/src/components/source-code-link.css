@@ -1,0 +1,21 @@
+/* Operator-configured link to the source code of the running deployment. */
+
+.source-code-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--toss-text-muted);
+  font-size: 12px;
+  text-decoration: none;
+}
+
+.source-code-link:hover {
+  color: var(--toss-brand-strong);
+  text-decoration: underline;
+}
+
+.source-code-link:focus-visible {
+  border-radius: 2px;
+  outline: 2px solid var(--toss-brand-primary);
+  outline-offset: 2px;
+}

@@ -2,6 +2,7 @@ import { AuthForm } from "@/components/AuthForm";
 import { BrandMark } from "@/components/BrandMark";
 import "@/pages/sign-in.css";
 import { LocaleSwitcher } from "@/components/LocaleSwitcher";
+import { SourceCodeLink } from "@/components/SourceCodeLink";
 import { UiCard } from "@/components/ui";
 import type { AuthConfig, ExternalGitProvider } from "@/lib/api";
 import type { Translator, UiLocale } from "@/lib/i18n";
@@ -116,6 +117,11 @@ export function SignInPage({
           />
         </UiCard>
       </div>
+      {config?.source_code_url ? (
+        <footer className="auth-footer">
+          <SourceCodeLink url={config.source_code_url} t={t} />
+        </footer>
+      ) : null}
     </section>
   );
 }

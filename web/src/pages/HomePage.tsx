@@ -2,6 +2,7 @@ import { Eye, GitBranch, UsersRound } from "lucide-react";
 import "@/pages/home.css";
 import "@/pages/public-pages.css";
 import { ExperienceResourceLink } from "@/components/ExperienceResourceLink";
+import { SourceCodeLink } from "@/components/SourceCodeLink";
 import { UiButton } from "@/components/ui";
 import type { Experience } from "@/lib/api";
 import { localizedText } from "@/lib/experience";
@@ -13,12 +14,14 @@ export function HomePage({
   experience,
   locale,
   t,
+  sourceCodeUrl = null,
   onSignIn,
   onOpenHelp
 }: {
   experience: Experience;
   locale: UiLocale;
   t: Translator;
+  sourceCodeUrl?: string | null;
   onSignIn: () => void;
   onOpenHelp: () => void;
 }) {
@@ -97,6 +100,12 @@ export function HomePage({
           ))}
         </div>
       </section>
+
+      {sourceCodeUrl ? (
+        <footer className="home-footer">
+          <SourceCodeLink url={sourceCodeUrl} t={t} />
+        </footer>
+      ) : null}
     </section>
   );
 }

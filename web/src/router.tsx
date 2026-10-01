@@ -81,7 +81,7 @@ function RequireAuthenticatedRoute() {
 }
 
 function HomeRoute() {
-  const { authUser, experience, locale, t } = useAppContext();
+  const { authConfig, authUser, experience, locale, t } = useAppContext();
   const navigate = useNavigate();
   if (authUser) return <Navigate to="/projects" replace />;
   return (
@@ -89,6 +89,7 @@ function HomeRoute() {
       experience={experience}
       locale={locale}
       t={t}
+      sourceCodeUrl={authConfig.source_code_url}
       onSignIn={() => navigate("/signin")}
       onOpenHelp={() => navigate("/help")}
     />
@@ -204,6 +205,7 @@ function ProfileRoute() {
     <ProfilePage
       authUser={authUser}
       externalGitProviders={authConfig.external_git_providers}
+      sourceCodeUrl={authConfig.source_code_url}
       locale={locale}
       t={t}
     />

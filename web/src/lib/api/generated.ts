@@ -1746,6 +1746,7 @@ export interface components {
             redirect_uri: string | null;
             site_name: string;
             site_name_managed: boolean;
+            source_code_url: string | null;
         };
         AuthMeResponse: {
             display_name: string;

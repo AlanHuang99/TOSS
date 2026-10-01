@@ -5282,7 +5282,8 @@
           "brand_mark",
           "accent_color",
           "accent_text_color",
-          "site_name_managed"
+          "site_name_managed",
+          "source_code_url"
         ],
         "properties": {
           "allow_local_login": {
@@ -5372,6 +5373,12 @@
           },
           "site_name_managed": {
             "type": "boolean"
+          },
+          "source_code_url": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
       },

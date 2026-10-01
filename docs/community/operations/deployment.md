@@ -241,6 +241,10 @@ production deployment must provide:
 - persistent `DATA_DIR`/`GIT_STORAGE_PATH`;
 - the selected authentication configuration.
 
+A deployment that runs a modified version can set `TOSS_SOURCE_CODE_URL` to
+the public location of its source; see the
+[Configuration index](../configuration/README.md).
+
 OIDC deployments additionally configure `OIDC_ISSUER`, `OIDC_CLIENT_ID`,
 `OIDC_CLIENT_SECRET`, `OIDC_REDIRECT_URI`, the groups claim, and user-facing
 `IDENTITY_PROVIDER_ID`/`IDENTITY_PROVIDER_DISPLAY_NAME` metadata.

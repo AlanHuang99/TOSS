@@ -39,7 +39,8 @@ const baseConfig: AuthConfig = {
   issuer: null,
   redirect_uri: null,
   site_name: "Test",
-  site_name_managed: true
+  site_name_managed: true,
+  source_code_url: null
 };
 
 const providers: AuthConfig["identity_providers"] = [

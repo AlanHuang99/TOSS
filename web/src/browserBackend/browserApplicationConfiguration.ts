@@ -72,6 +72,7 @@ export function browserAuthConfig(): AuthConfig {
     redirect_uri: null,
     site_name: product.name,
     site_name_managed: true,
+    source_code_url: null,
   };
 }
 

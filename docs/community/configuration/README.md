@@ -48,6 +48,15 @@ cannot all be enumerated there; they follow
 `CORE_DRAIN_TIMEOUT_SECONDS` is environment-owned, accepts 1–300 seconds, and
 defaults to 30. The platform termination grace period must exceed it.
 
+`TOSS_SOURCE_CODE_URL` is an optional absolute `https` URL of the source code
+of the running version. The public auth configuration returns it as
+`source_code_url`, and the landing, sign-in, and Profile pages then show a
+"Source code" link; an empty or unset value shows no link. Startup fails when
+the value is not an absolute `https` URL or contains credentials. The project
+is licensed under AGPL-3.0; section 13 requires a modified version to offer its
+corresponding source to users who interact with it over a network, and this
+setting gives a deployment one place to make that offer.
+
 ## Precedence
 
 - Build-time project types and frontend features bound the code included in the SPA.

@@ -25,6 +25,7 @@ import {
   UserRound
 } from "lucide-react";
 import { ProviderBrandMark } from "@/components/ProviderBrandMark";
+import { SourceCodeLink } from "@/components/SourceCodeLink";
 import {
   UiButton,
   UiBadge,
@@ -193,11 +194,13 @@ function DisplayNameCard({ authUser, t }: { authUser: AuthUser; t: Translator })
 export function ProfilePage({
   authUser,
   externalGitProviders,
+  sourceCodeUrl = null,
   locale,
   t
 }: {
   authUser: AuthUser;
   externalGitProviders: ExternalGitProvider[];
+  sourceCodeUrl?: string | null;
   locale: UiLocale;
   t: Translator;
 }) {
@@ -705,6 +708,12 @@ export function ProfilePage({
           </div>
         </UiCard>
       </div>
+
+      {sourceCodeUrl ? (
+        <footer className="profile-footer">
+          <SourceCodeLink url={sourceCodeUrl} t={t} />
+        </footer>
+      ) : null}
 
       <UiDialog
         open={!!disconnectCandidate}

@@ -68,6 +68,8 @@ pub(crate) struct AuthConfigResponse {
     pub accent_color: String,
     pub accent_text_color: String,
     pub site_name_managed: bool,
+    #[schema(required)]
+    pub source_code_url: Option<String>,
 }
 
 #[derive(Serialize, utoipa::ToSchema)]
@@ -252,6 +254,7 @@ pub(crate) async fn auth_config(State(state): State<AppState>) -> Json<AuthConfi
         accent_color: state.distribution.product.accent_color.clone(),
         accent_text_color: state.distribution.product.accent_text_color.clone(),
         site_name_managed: state.distribution.product.name_managed,
+        source_code_url: state.source_code_url.as_deref().map(str::to_string),
     })
 }
 
@@ -361,4 +364,40 @@ async fn validate_oidc_settings(
             .with_warning("OIDC provider validation failed", failure),
         },
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::server::test_support::{TestApp, TestError};
+    use axum::http::{Method, StatusCode};
+    use std::sync::Arc;
+
+    #[tokio::test]
+    async fn public_configuration_reports_the_optional_source_code_url() -> Result<(), TestError> {
+        let Some(unset) = TestApp::start().await? else {
+            return Ok(());
+        };
+        let response = unset
+            .send(Method::GET, "/v1/auth/config", None, None)
+            .await?;
+        assert_eq!(response.status, StatusCode::OK);
+        assert_eq!(response.field("source_code_url"), &serde_json::Value::Null);
+
+        let Some(configured) = TestApp::start_with(|state| {
+            state.source_code_url = Some(Arc::from("https://git.example.test/toss"));
+        })
+        .await?
+        else {
+            return Ok(());
+        };
+        let response = configured
+            .send(Method::GET, "/v1/auth/config", None, None)
+            .await?;
+        assert_eq!(response.status, StatusCode::OK);
+        assert_eq!(
+            response.field("source_code_url"),
+            "https://git.example.test/toss"
+        );
+        Ok(())
+    }
 }

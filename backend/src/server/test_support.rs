@@ -40,6 +40,12 @@ impl TestResponse {
 
 impl TestApp {
     pub(crate) async fn start() -> Result<Option<Self>, TestError> {
+        Self::start_with(|_| {}).await
+    }
+
+    pub(crate) async fn start_with(
+        configure: impl FnOnce(&mut AppState),
+    ) -> Result<Option<Self>, TestError> {
         let database_url =
             std::env::var("TEST_DATABASE_URL").or_else(|_| std::env::var("DATABASE_URL"));
         let Ok(database_url) = database_url else {
@@ -48,7 +54,8 @@ impl TestApp {
         let db = PgPool::connect(&database_url).await?;
         sqlx::migrate!("./migrations").run(&db).await?;
         let data_dir = tempfile::tempdir()?;
-        let state = AppState::for_tests(db.clone(), data_dir.path().to_path_buf())?;
+        let mut state = AppState::for_tests(db.clone(), data_dir.path().to_path_buf())?;
+        configure(&mut state);
         Ok(Some(Self {
             router: build_router().with_state(state),
             db,

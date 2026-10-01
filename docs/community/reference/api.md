@@ -71,7 +71,8 @@ valid for non-Web clients; this fence is not a public API version.
 
 `GET /v1/auth/config` returns sanitized runtime policy and distribution fields,
 including `distribution_id`, `enabled_project_types`, product branding,
-anonymous-access policy, an ordered `identity_providers` list, and nullable
+anonymous-access policy, an ordered `identity_providers` list, the nullable
+`source_code_url` configured by `TOSS_SOURCE_CODE_URL`, and nullable
 `ai_assistant` connection-policy display metadata. A user-defined policy returns
 only its kind. A managed policy returns provider ID/label, effective default
 recommendation ID, effective recommendation IDs/upstream IDs/labels, and the

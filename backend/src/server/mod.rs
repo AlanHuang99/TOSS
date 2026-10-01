@@ -109,6 +109,39 @@ fn drain_timeout_from_env() -> Result<Duration, std::io::Error> {
         .map_err(|message| std::io::Error::new(std::io::ErrorKind::InvalidInput, message))
 }
 
+/// Parses the optional public location of the running source code. An empty
+/// value leaves the link unset; anything else must be an absolute HTTPS URL.
+fn parse_source_code_url(raw: Option<&str>) -> Result<Option<Arc<str>>, String> {
+    let Some(raw) = raw.map(str::trim).filter(|value| !value.is_empty()) else {
+        return Ok(None);
+    };
+    let invalid = || "TOSS_SOURCE_CODE_URL must be an absolute https URL".to_string();
+    let url = url::Url::parse(raw).map_err(|_| invalid())?;
+    if url.scheme() != "https"
+        || url.host_str().is_none_or(str::is_empty)
+        || !url.username().is_empty()
+        || url.password().is_some()
+    {
+        return Err(invalid());
+    }
+    Ok(Some(Arc::from(url.as_str())))
+}
+
+fn source_code_url_from_env() -> Result<Option<Arc<str>>, std::io::Error> {
+    let raw = match env::var("TOSS_SOURCE_CODE_URL") {
+        Ok(value) => Some(value),
+        Err(env::VarError::NotPresent) => None,
+        Err(env::VarError::NotUnicode(_)) => {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "TOSS_SOURCE_CODE_URL must be valid Unicode",
+            ))
+        }
+    };
+    parse_source_code_url(raw.as_deref())
+        .map_err(|message| std::io::Error::new(std::io::ErrorKind::InvalidInput, message))
+}
+
 #[cfg(unix)]
 async fn wait_for_shutdown_signal() -> Result<&'static str, std::io::Error> {
     let mut terminate = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())?;
@@ -258,6 +291,7 @@ pub async fn run() -> Result<(), Box<dyn std::error::Error>> {
         .init();
     let drain_trigger = DrainTrigger::new();
     let drain_timeout = drain_timeout_from_env()?;
+    let source_code_url = source_code_url_from_env()?;
 
     let distribution = Arc::new(
         DistributionConfig::load_from_env()
@@ -403,6 +437,7 @@ pub async fn run() -> Result<(), Box<dyn std::error::Error>> {
         frontend_features: Arc::new(enabled_frontend_features),
         ai_assistant: Arc::new(enabled_ai_assistant),
         spa_index_html,
+        source_code_url,
         collaboration,
         versioning,
         processing,
@@ -566,7 +601,7 @@ pub async fn run() -> Result<(), Box<dyn std::error::Error>> {
 
 #[cfg(test)]
 mod tests {
-    use super::{application_content_security_policy, parse_drain_timeout};
+    use super::{application_content_security_policy, parse_drain_timeout, parse_source_code_url};
 
     #[test]
     fn application_csp_hashes_the_only_inline_boot_script() -> Result<(), String> {
@@ -596,5 +631,26 @@ mod tests {
         assert!(parse_drain_timeout(Some("0")).is_err());
         assert!(parse_drain_timeout(Some("301")).is_err());
         assert!(parse_drain_timeout(Some("soon")).is_err());
+    }
+
+    #[test]
+    fn source_code_url_is_optional_and_must_be_absolute_https() {
+        assert_eq!(parse_source_code_url(None), Ok(None));
+        assert_eq!(parse_source_code_url(Some("  ")), Ok(None));
+        assert_eq!(
+            parse_source_code_url(Some(" https://git.example.test/toss/tree/v1 "))
+                .map(|url| url.map(|url| url.to_string())),
+            Ok(Some("https://git.example.test/toss/tree/v1".to_string()))
+        );
+        for invalid in [
+            "http://git.example.test/toss",
+            "git.example.test/toss",
+            "/source",
+            "https://user:secret@git.example.test/toss",
+            "ftp://git.example.test/toss",
+            "not a url",
+        ] {
+            assert!(parse_source_code_url(Some(invalid)).is_err(), "{invalid}");
+        }
     }
 }

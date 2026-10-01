@@ -313,3 +313,11 @@
     inset-inline-end: var(--toss-space-lg);
   }
 }
+
+.auth-footer {
+  position: relative;
+  z-index: 1;
+  margin-top: var(--toss-space-xl);
+  display: flex;
+  justify-content: center;
+}

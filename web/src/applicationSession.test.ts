@@ -48,7 +48,8 @@ const authConfig: AuthConfig = {
   issuer: "https://identity.example.test",
   redirect_uri: "https://typst.example.test/callback",
   site_name: "typst-collab",
-  site_name_managed: true
+  site_name_managed: true,
+  source_code_url: null
 };
 
 const experience: Experience = {
