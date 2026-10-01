@@ -38,6 +38,21 @@ fn git_http_backend_timeout_seconds() -> u64 {
         .unwrap_or(120)
 }
 
+/// Access required to push through direct Git. Pushes are owner-only unless
+/// `GIT_PUSH_REQUIRED_ROLE=write` extends them to every member with write
+/// access. Force pushes, stale pushes, and pushes that conflict with pending
+/// online edits are rejected for every role.
+fn git_push_access_need() -> AccessNeed {
+    git_push_access_need_for(env::var("GIT_PUSH_REQUIRED_ROLE").ok().as_deref())
+}
+
+fn git_push_access_need_for(required_role: Option<&str>) -> AccessNeed {
+    match required_role.map(str::trim) {
+        Some(role) if role.eq_ignore_ascii_case("write") => AccessNeed::Write,
+        _ => AccessNeed::GitSync,
+    }
+}
+
 async fn recover_failed_backend(
     session: Option<&ReceivePackSession<'_>>,
     project_id: Uuid,
@@ -136,7 +151,7 @@ pub(crate) async fn git_http_backend(
     let is_push_flow = can_push || advertises_receive_pack;
     let is_pull_flow = rest.ends_with("git-upload-pack") || advertises_upload_pack;
     let access_need = if is_push_flow {
-        AccessNeed::GitSync
+        git_push_access_need()
     } else {
         AccessNeed::Read
     };
@@ -346,4 +361,22 @@ fn build_git_http_command(
     command.stderr(std::process::Stdio::piped());
     command.kill_on_drop(true);
     command
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn git_push_requires_the_owner_unless_write_access_is_configured() {
+        for value in [None, Some("owner"), Some(""), Some("admin")] {
+            assert!(matches!(
+                git_push_access_need_for(value),
+                AccessNeed::GitSync
+            ));
+        }
+        for value in [Some("write"), Some(" Write ")] {
+            assert!(matches!(git_push_access_need_for(value), AccessNeed::Write));
+        }
+    }
 }

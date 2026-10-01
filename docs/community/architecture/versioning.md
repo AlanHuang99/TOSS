@@ -66,7 +66,9 @@ The project-scoped Git endpoint delegates protocol transport to
 `git http-backend`. The generated URL includes the platform username as a Basic
 Auth hint; a personal access token with the `git` scope in the password
 position authenticates the request. Clone and fetch require project read
-access, while receive-pack/push requires the project owner.
+access. Receive-pack/push requires the project owner by default; operators can
+set `GIT_PUSH_REQUIRED_ROLE=write` to let every member with write access push.
+The receive-pack policy below applies to every role.
 
 Policy around receive-pack is application-owned:
 

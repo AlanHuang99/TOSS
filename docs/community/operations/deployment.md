@@ -329,7 +329,8 @@ failures enter bounded retry. Inbound concurrency and repository limits use
 `EXTERNAL_GIT_INBOUND_WORKER_*` and `EXTERNAL_GIT_IMPORT_MAX_*`. Direct Git
 smart-HTTP traffic waits for the Git subprocess and post-push Workspace apply;
 `GIT_HTTP_BACKEND_TIMEOUT_SECONDS` bounds the subprocess at 120 seconds by
-default. The ingress timeout must still accommodate the largest supported
+default. Direct-Git pushes are owner-only unless `GIT_PUSH_REQUIRED_ROLE=write`
+lets members with write access push. The ingress timeout must still accommodate the largest supported
 clone, pull, or push without exceeding that application deadline. Direct-Git
 request bodies are currently buffered; subprocess output is spooled to a
 temporary file and streamed to the client. Memory capacity therefore remains
