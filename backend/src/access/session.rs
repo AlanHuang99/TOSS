@@ -1,5 +1,6 @@
 //! Authenticated session lookup, issuance, and revocation.
 
+use super::display_name::DisplayName;
 use super::session_persistence;
 use chrono::Utc;
 use rand::distr::{Alphanumeric, SampleString};
@@ -21,12 +22,30 @@ pub(crate) async fn authenticated_user(
 ) -> Result<Option<AuthenticatedUser>, sqlx::Error> {
     Ok(session_persistence::find_user(db, user_id)
         .await?
-        .map(|user| AuthenticatedUser {
-            id: user.id,
-            email: user.email,
-            username: user.username,
-            display_name: user.display_name,
-        }))
+        .map(authenticated_user_from_record))
+}
+
+pub(crate) async fn update_display_name(
+    db: &PgPool,
+    user_id: Uuid,
+    display_name: &DisplayName,
+) -> Result<Option<AuthenticatedUser>, sqlx::Error> {
+    Ok(
+        session_persistence::update_display_name(db, user_id, display_name.as_str())
+            .await?
+            .map(authenticated_user_from_record),
+    )
+}
+
+fn authenticated_user_from_record(
+    user: session_persistence::AuthenticatedUserRecord,
+) -> AuthenticatedUser {
+    AuthenticatedUser {
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        display_name: user.display_name,
+    }
 }
 
 pub(crate) struct IssueSessionCommand<'value> {

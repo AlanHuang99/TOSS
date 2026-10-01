@@ -7,9 +7,9 @@ use crate::access::{
     list_organizations, list_personal_access_tokens, list_project_access_users,
     list_project_organization_access, list_project_share_links, list_roles, local_login,
     local_register, oidc_callback, oidc_login, resolve_project_share_link,
-    revoke_personal_access_token, revoke_project_share_link, upsert_admin_auth_settings,
-    upsert_group_role, upsert_org_group_role_mapping, upsert_project_organization_access,
-    upsert_role,
+    revoke_personal_access_token, revoke_project_share_link, update_auth_me,
+    upsert_admin_auth_settings, upsert_group_role, upsert_org_group_role_mapping,
+    upsert_project_organization_access, upsert_role,
 };
 use crate::app_state::AppState;
 use crate::collaboration::{project_ws_handler, realtime_auth, ws_handler};
@@ -120,7 +120,7 @@ pub(super) fn build_router() -> Router<AppState> {
             "/v1/auth/external-git/{provider_id}/login",
             get(external_git_login),
         )
-        .route("/v1/auth/me", get(auth_me))
+        .route("/v1/auth/me", get(auth_me).patch(update_auth_me))
         .route("/v1/auth/logout", post(auth_logout))
         .route(
             "/v1/external-git/providers/{provider_id}/connection",

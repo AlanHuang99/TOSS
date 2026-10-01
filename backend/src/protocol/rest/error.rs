@@ -6,6 +6,7 @@ use utoipa::ToSchema;
 pub enum ApiErrorCode {
     AuthCredentialsInvalid,
     AuthCredentialsRequired,
+    AuthDisplayNameInvalid,
     AuthEmailConflict,
     AuthEmailInvalid,
     AuthEmailRequired,

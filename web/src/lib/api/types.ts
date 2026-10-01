@@ -97,6 +97,7 @@ export type AdminAuthSettingsResponse = ApiSchema<"AdminAuthSettingsResponse">;
 export type IdentityProvider = ApiSchema<"IdentityProviderResponse">;
 export type ExternalGitProvider = ApiSchema<"ExternalGitProviderResponse">;
 export type AuthUser = ApiSchema<"AuthMeResponse">;
+export type UpdateAuthMeInput = ApiSchema<"UpdateAuthMeInput">;
 export type LocalLoginInput = ApiSchema<"LocalLoginInput">;
 export type LocalRegisterInput = ApiSchema<"LocalRegisterInput">;
 export type AdminAuthSettings = ApiSchema<"AuthSettings"> & {

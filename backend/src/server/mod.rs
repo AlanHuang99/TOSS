@@ -33,6 +33,8 @@ use tracing::{info, warn};
 mod ai_runtime;
 mod routes;
 mod runtime;
+#[cfg(test)]
+pub(crate) mod test_support;
 mod web_build_manifest;
 
 use runtime::run_migrations;

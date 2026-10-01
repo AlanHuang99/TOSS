@@ -21,7 +21,8 @@ import {
   Plus,
   ShieldCheck,
   ShieldX,
-  TriangleAlert
+  TriangleAlert,
+  UserRound
 } from "lucide-react";
 import { ProviderBrandMark } from "@/components/ProviderBrandMark";
 import {
@@ -39,12 +40,19 @@ import {
   UiTooltip
 } from "@/components/ui";
 import {
+  applicationBootstrapQueryKey,
+  signedInContextQueryKey,
+  type ApplicationBootstrap
+} from "@/applicationSession";
+import {
   createPersonalAccessToken,
   disconnectExternalGitConnection,
   externalGitAuthorizationUrl,
   getExternalGitConnectionStatus,
   listPersonalAccessTokens,
   revokePersonalAccessToken,
+  updateDisplayName,
+  type AuthUser,
   type ExternalGitConnectionStatus,
   type ExternalGitProvider,
   type PersonalAccessTokenInfo
@@ -62,6 +70,15 @@ type CreatePatReveal = {
 
 type TokenState = "active" | "expired" | "revoked";
 const EMPTY_TOKENS: PersonalAccessTokenInfo[] = [];
+const DISPLAY_NAME_MAX_CHARS = 64;
+
+function displayNameIsValid(value: string) {
+  return (
+    value.length > 0 &&
+    Array.from(value).length <= DISPLAY_NAME_MAX_CHARS &&
+    !/[\u0000-\u001f\u007f-\u009f]/u.test(value)
+  );
+}
 
 function tokenState(token: PersonalAccessTokenInfo): TokenState {
   if (token.revoked_at) return "revoked";
@@ -91,11 +108,87 @@ function TokenMetadata({
   );
 }
 
+function DisplayNameCard({ authUser, t }: { authUser: AuthUser; t: Translator }) {
+  const queryClient = useQueryClient();
+  const [draft, setDraft] = useState(authUser.display_name);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const updateMutation = useMutation({
+    mutationFn: updateDisplayName,
+    onSuccess: (updated) => {
+      queryClient.setQueryData<ApplicationBootstrap>(
+        applicationBootstrapQueryKey,
+        (current) => (current ? { ...current, authUser: updated } : current)
+      );
+      void queryClient.invalidateQueries({
+        queryKey: signedInContextQueryKey(updated.user_id)
+      });
+    }
+  });
+  const trimmed = draft.trim();
+  const invalid = trimmed.length > 0 && !displayNameIsValid(trimmed);
+  const canSave =
+    !updateMutation.isPending &&
+    displayNameIsValid(trimmed) &&
+    trimmed !== authUser.display_name;
+
+  async function save() {
+    if (!canSave) return;
+    try {
+      setError(null);
+      setSaved(false);
+      const updated = await updateMutation.mutateAsync(trimmed);
+      setDraft(updated.display_name);
+      setSaved(true);
+    } catch (reason) {
+      setError(
+        reason instanceof Error ? reason.message : t("profile.displayNameFailed")
+      );
+    }
+  }
+
+  return (
+    <UiCard className="profile-display-name-card" accented>
+      <UiSectionHeading
+        headingLevel={2}
+        icon={<UserRound size={18} />}
+        title={t("profile.displayNameTitle")}
+        description={t("profile.displayNameDescription")}
+      />
+      <UiInput
+        label={t("profile.displayNameLabel")}
+        value={draft}
+        onChange={(event) => {
+          setDraft(event.target.value);
+          setSaved(false);
+          setError(null);
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") void save();
+        }}
+        error={invalid ? t("profile.displayNameInvalid") : (error ?? undefined)}
+      />
+      <div className="profile-form-actions profile-display-name-actions">
+        {saved ? (
+          <span className="profile-display-name-saved" role="status">
+            {t("profile.displayNameSaved")}
+          </span>
+        ) : null}
+        <UiButton variant="primary" disabled={!canSave} onClick={() => void save()}>
+          {updateMutation.isPending ? t("profile.displayNameSaving") : t("common.save")}
+        </UiButton>
+      </div>
+    </UiCard>
+  );
+}
+
 export function ProfilePage({
+  authUser,
   externalGitProviders,
   locale,
   t
 }: {
+  authUser: AuthUser;
   externalGitProviders: ExternalGitProvider[];
   locale: UiLocale;
   t: Translator;
@@ -269,6 +362,8 @@ export function ProfilePage({
       />
 
       <div className="profile-content">
+        <DisplayNameCard authUser={authUser} t={t} />
+
         {externalGitProviders.length > 0 ? (
           <UiCard className="profile-provider-card" accented>
             <UiSectionHeading

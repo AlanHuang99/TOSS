@@ -1,6 +1,10 @@
 use rand::distr::{Alphanumeric, SampleString};
 use std::env;
 
+/// Display name given to a federated account whose identity claims carry no
+/// usable name. Sign-in replaces it once the authority supplies a better one.
+pub(crate) const PLACEHOLDER_FEDERATED_DISPLAY_NAME: &str = "OIDC User";
+
 pub(crate) fn is_valid_email(email: &str) -> bool {
     let bytes = email.as_bytes();
     if email.len() < 3 || email.len() > 254 {

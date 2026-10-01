@@ -160,6 +160,7 @@ pub use external_repositories::ExternalGitCheckpointResponse;
         access::gitlab_login,
         access::gitlab_callback,
         access::auth_me,
+        access::update_auth_me,
         access::auth_logout,
         external_repositories::external_git_status,
         external_repositories::disconnect_external_git,

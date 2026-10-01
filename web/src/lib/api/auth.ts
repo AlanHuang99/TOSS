@@ -12,7 +12,8 @@ import type {
   HelpContent,
   IdentityProvider,
   LocalLoginInput,
-  LocalRegisterInput
+  LocalRegisterInput,
+  UpdateAuthMeInput
 } from "@/lib/api/types";
 
 export async function getAuthConfig() {
@@ -51,6 +52,17 @@ export async function getAuthMe() {
   if (response.status === 401) return null;
   if (!response.ok) await throwApiError(response, "api.loadSession");
   return (await response.json()) as AuthUser;
+}
+
+export async function updateDisplayName(displayName: string) {
+  const input: UpdateAuthMeInput = { display_name: displayName };
+  const response = await fetch(apiUrl("/v1/auth/me"), {
+    method: "PATCH",
+    credentials: authCredentials(),
+    headers: authHeaders({ "content-type": "application/json" }),
+    body: JSON.stringify(input)
+  });
+  return parseJsonOrThrow<AuthUser>(response, "api.updateDisplayName");
 }
 
 export async function localLogin(email: string, password: string) {

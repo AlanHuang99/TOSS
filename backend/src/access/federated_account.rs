@@ -2,6 +2,7 @@
 
 use super::account_policy::{
     bootstrap_admin_email_matches, federated_username_candidate, sanitize_username_seed,
+    PLACEHOLDER_FEDERATED_DISPLAY_NAME,
 };
 use super::{federated_account_persistence, grant_site_admin_membership};
 use crate::database_error::is_unique_constraint_violation;
@@ -39,6 +40,7 @@ pub(crate) async fn federated_identity_user_id(
 pub(crate) enum ProvisionFederatedAccountStage {
     LookupIdentity,
     TouchIdentity,
+    RefreshDisplayName,
     BeginUser,
     InsertUserIdentity,
     RollbackUsernameCollision,
@@ -115,6 +117,7 @@ async fn provision_federated_user(
             user_id: Some(user_id),
             source,
         })?;
+        refresh_placeholder_display_name(db, user_id, command.display_name).await?;
         return Ok(user_id);
     }
     let username_base = sanitize_username_seed(command.username_seed);
@@ -208,6 +211,32 @@ async fn provision_federated_user(
         }
     }
     Err(ProvisionFederatedAccountError::UsernameExhausted)
+}
+
+/// Replaces the placeholder name of an account created before its authority
+/// supplied usable name claims. Names chosen by the user are never changed.
+async fn refresh_placeholder_display_name(
+    db: &PgPool,
+    user_id: Uuid,
+    display_name: &str,
+) -> Result<(), ProvisionFederatedAccountError> {
+    let display_name = display_name.trim();
+    if display_name.is_empty() || display_name == PLACEHOLDER_FEDERATED_DISPLAY_NAME {
+        return Ok(());
+    }
+    federated_account_persistence::replace_display_name_if_unchanged(
+        db,
+        user_id,
+        PLACEHOLDER_FEDERATED_DISPLAY_NAME,
+        display_name,
+    )
+    .await
+    .map(|_| ())
+    .map_err(|source| ProvisionFederatedAccountError::Persistence {
+        stage: ProvisionFederatedAccountStage::RefreshDisplayName,
+        user_id: Some(user_id),
+        source,
+    })
 }
 
 #[derive(Debug, Error)]
@@ -357,6 +386,85 @@ mod tests {
         .await?;
 
         assert_ne!(first, second);
+        Ok(())
+    }
+
+    fn sign_in_command<'value>(
+        authority_kind: LoginAuthorityKind,
+        email: &'value str,
+        subject: &'value str,
+        display_name: &'value str,
+    ) -> ProvisionFederatedAccountCommand<'value> {
+        ProvisionFederatedAccountCommand {
+            email,
+            display_name,
+            authority_kind,
+            authority_id: "https://identity.example.test",
+            subject,
+            username_seed: subject,
+        }
+    }
+
+    async fn stored_display_name(
+        pool: &PgPool,
+        user_id: Uuid,
+    ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+        Ok(
+            sqlx::query_scalar("select display_name from users where id = $1")
+                .bind(user_id)
+                .fetch_one(pool)
+                .await?,
+        )
+    }
+
+    #[tokio::test]
+    async fn sign_in_replaces_only_the_placeholder_display_name(
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        let Some(pool) = migrated_test_pool().await? else {
+            return Ok(());
+        };
+        for authority_kind in [LoginAuthorityKind::Oidc, LoginAuthorityKind::ExternalGit] {
+            let suffix = Uuid::new_v4().simple().to_string();
+            let email = format!("placeholder-{suffix}@example.test");
+            let subject = format!("placeholder-{suffix}");
+            let user_id = provision_federated_account(
+                &pool,
+                sign_in_command(
+                    authority_kind,
+                    &email,
+                    &subject,
+                    PLACEHOLDER_FEDERATED_DISPLAY_NAME,
+                ),
+            )
+            .await?;
+            assert_eq!(
+                stored_display_name(&pool, user_id).await?,
+                PLACEHOLDER_FEDERATED_DISPLAY_NAME
+            );
+
+            let same_user = provision_federated_account(
+                &pool,
+                sign_in_command(authority_kind, &email, &subject, "  Ada Lovelace "),
+            )
+            .await?;
+            assert_eq!(same_user, user_id);
+            assert_eq!(stored_display_name(&pool, user_id).await?, "Ada Lovelace");
+
+            sqlx::query("update users set display_name = $2 where id = $1")
+                .bind(user_id)
+                .bind("Chosen by the user")
+                .execute(&pool)
+                .await?;
+            provision_federated_account(
+                &pool,
+                sign_in_command(authority_kind, &email, &subject, "Provider name"),
+            )
+            .await?;
+            assert_eq!(
+                stored_display_name(&pool, user_id).await?,
+                "Chosen by the user"
+            );
+        }
         Ok(())
     }
 

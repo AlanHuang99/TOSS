@@ -6,6 +6,7 @@ mod auth_settings_http;
 mod auth_settings_model;
 mod auth_settings_persistence;
 mod authorization;
+mod display_name;
 mod federated_account;
 mod federated_account_persistence;
 mod grant;
@@ -108,7 +109,7 @@ pub(crate) use personal_token_model::PersonalAccessTokenInfo;
 pub(crate) use principal::{authenticated_user_id, request_user_id, required_request_user_id};
 pub(crate) use session_http::{
     auth_cookie_secure, auth_logout, auth_me, issue_session_for_request, session_cookie,
-    AuthMeResponse, SessionResponse,
+    update_auth_me, AuthMeResponse, SessionResponse, UpdateAuthMeInput,
 };
 pub(crate) use sharing::revoke_project_temporary_sessions;
 pub(crate) use sharing_http::{

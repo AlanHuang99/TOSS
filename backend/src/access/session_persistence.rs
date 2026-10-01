@@ -31,6 +31,29 @@ pub(crate) async fn find_user(
     }))
 }
 
+pub(crate) async fn update_display_name(
+    db: &PgPool,
+    user_id: Uuid,
+    display_name: &str,
+) -> Result<Option<AuthenticatedUserRecord>, sqlx::Error> {
+    let row = sqlx::query(
+        "update users
+         set display_name = $2
+         where id = $1
+         returning id, email, username, display_name",
+    )
+    .bind(user_id)
+    .bind(display_name)
+    .fetch_optional(db)
+    .await?;
+    Ok(row.map(|value| AuthenticatedUserRecord {
+        id: value.get("id"),
+        email: value.get("email"),
+        username: value.get("username"),
+        display_name: value.get("display_name"),
+    }))
+}
+
 pub(crate) struct SessionWrite<'value> {
     pub token_fingerprint: &'value [u8],
     pub user_id: Uuid,

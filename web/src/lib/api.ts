@@ -14,7 +14,8 @@ export {
   identityLoginUrl,
   localLogin,
   localRegister,
-  logout
+  logout,
+  updateDisplayName
 } from "@/lib/api/auth";
 
 export {

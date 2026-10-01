@@ -485,6 +485,44 @@
             }
           }
         }
+      },
+      "patch": {
+        "tags": [
+          "identity-access"
+        ],
+        "operationId": "update_auth_me",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAuthMeInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthMeResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/v1/auth/logout": {
@@ -5049,6 +5087,7 @@
         "enum": [
           "auth_credentials_invalid",
           "auth_credentials_required",
+          "auth_display_name_invalid",
           "auth_email_conflict",
           "auth_email_invalid",
           "auth_email_required",
@@ -8825,6 +8864,17 @@
           },
           "permission": {
             "$ref": "#/components/schemas/ProjectPermission"
+          }
+        }
+      },
+      "UpdateAuthMeInput": {
+        "type": "object",
+        "required": [
+          "display_name"
+        ],
+        "properties": {
+          "display_name": {
+            "type": "string"
           }
         }
       },

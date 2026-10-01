@@ -54,6 +54,13 @@ Generic OIDC uses normalized issuer as the authority ID. External login uses
 the stable provider instance ID. The full tuple maps to exactly one platform
 account, and one account may bind at most one subject for an authority.
 
+A new OIDC account takes its display name from the `name` claim, then from
+`given_name` and `family_name`, then `preferred_username`, then the local part
+of the `email` claim, and finally the placeholder `OIDC User`. When an existing
+login identity signs in and the account still carries that placeholder, the
+newly derived name replaces it; a name the user has set is never overwritten.
+Users change their display name through `PATCH /v1/auth/me`.
+
 Subject is not globally unique, and accounts are never merged by matching
 email. A verified email already owned by another account produces an account
 link prompt: the user authenticates through an existing method and then

@@ -1,11 +1,22 @@
 //! HTTP representation of Access-owned authentication and authorization errors.
 
 use super::authorization::{ProjectAuthorizationError, SiteAdminAuthorizationError};
+use super::display_name::InvalidDisplayName;
 use super::principal::RequestAuthenticationError;
 use crate::http_response::ApiError;
 use crate::protocol::ApiErrorCode;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
+
+impl From<InvalidDisplayName> for ApiError {
+    fn from(_source: InvalidDisplayName) -> Self {
+        ApiError::new(
+            StatusCode::BAD_REQUEST,
+            ApiErrorCode::AuthDisplayNameInvalid,
+            "Display name must contain 1 to 64 characters and no control characters",
+        )
+    }
+}
 
 impl From<RequestAuthenticationError> for ApiError {
     fn from(source: RequestAuthenticationError) -> Self {
@@ -107,6 +118,13 @@ mod tests {
         let project = ApiError::from(ProjectAuthorizationError::PermissionDenied);
         assert_eq!(project.status(), StatusCode::FORBIDDEN);
         assert_eq!(project.code(), ApiErrorCode::ProjectAccessForbidden);
+    }
+
+    #[test]
+    fn invalid_display_names_have_a_semantic_bad_request_response() {
+        let error = ApiError::from(InvalidDisplayName);
+        assert_eq!(error.status(), StatusCode::BAD_REQUEST);
+        assert_eq!(error.code(), ApiErrorCode::AuthDisplayNameInvalid);
     }
 
     #[test]

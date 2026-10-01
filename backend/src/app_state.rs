@@ -45,3 +45,47 @@ impl AppState {
         )
     }
 }
+
+#[cfg(test)]
+impl AppState {
+    /// Composes the Community distribution over a test database without object
+    /// storage, external providers, optional features, or background owners.
+    pub(crate) fn for_tests(db: PgPool, data_dir: PathBuf) -> Result<Self, String> {
+        let distribution = DistributionConfig::load(
+            &std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("../distributions/community/toss.json"),
+        )?;
+        let processing = crate::document_processing::ProcessingConfig::from_config(
+            crate::document_processing::ProcessingConfigFile::default(),
+            &data_dir,
+        )?;
+        let external_git_providers = ExternalGitProviderRegistry::from_providers(Vec::new())
+            .map_err(|instance_id| format!("duplicate external Git provider {instance_id}"))?;
+        let drain = DrainSignal::idle();
+        Ok(Self {
+            oidc_defaults: OidcProviderDefaults {
+                provider_id: "oidc".to_string(),
+                provider_display_name: "OpenID Connect".to_string(),
+                issuer: String::new(),
+                client_id: String::new(),
+                client_secret: String::new(),
+                redirect_uri: String::new(),
+                groups_claim: "groups".to_string(),
+            },
+            external_git_providers,
+            git_storage_dir: data_dir.join("git"),
+            typst_builtin_dir: data_dir.join("builtin"),
+            storage: None,
+            distribution: Arc::new(distribution),
+            frontend_features: Arc::new(Vec::new()),
+            ai_assistant: Arc::new(None),
+            spa_index_html: Arc::from(Vec::new()),
+            collaboration: CollaborationContext::new(db.clone(), drain.clone()),
+            versioning: VersioningContext::default(),
+            processing: DocumentProcessingContext::new(db.clone(), None, processing),
+            drain,
+            data_dir,
+            db,
+        })
+    }
+}

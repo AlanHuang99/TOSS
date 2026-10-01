@@ -66,7 +66,7 @@ valid for non-Web clients; this fence is not a public API version.
 - `GET /v1/auth/gitlab/login`
 - `GET /v1/auth/gitlab/callback`
 - `GET /v1/auth/external-git/{provider_id}/login`
-- `GET /v1/auth/me`
+- `GET|PATCH /v1/auth/me`
 - `POST /v1/auth/logout`
 
 `GET /v1/auth/config` returns sanitized runtime policy and distribution fields,
@@ -89,6 +89,11 @@ but entries marked `authenticated` in the distribution are returned only when
 the request carries a valid session. Their responses use `Cache-Control:
 private, no-store` and `Vary: Cookie, Authorization`. Product asset responses
 are passive, size-bounded distribution files and are sent with `nosniff`.
+
+`PATCH /v1/auth/me` accepts `{ "display_name": "..." }` and returns the same
+body as `GET /v1/auth/me`. The value is trimmed and must contain 1 to 64
+characters without control characters; otherwise the response is `400` with
+`code: "auth_display_name_invalid"`.
 
 The `oidc` and `gitlab` login/callback route pairs currently drive the same
 configured OIDC client. They are naming aliases, not independent providers.

@@ -18,9 +18,16 @@ import type {
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  applicationBootstrapQueryKey,
+  signedInContextQueryKey,
+  type ApplicationBootstrap
+} from "@/applicationSession";
+import {
   disconnectExternalGitConnection,
   getExternalGitConnectionStatus,
   listPersonalAccessTokens,
+  updateDisplayName,
+  type AuthUser,
   type ExternalGitConnectionStatus,
   type ExternalGitProvider
 } from "@/lib/api";
@@ -49,10 +56,15 @@ vi.mock("@/components/ui", () => ({
   UiIconButton: ({ children, ...props }: ButtonHTMLAttributes<HTMLButtonElement>) => (
     <button {...props}>{children}</button>
   ),
-  UiInput: ({ label, ...props }: InputHTMLAttributes<HTMLInputElement> & { label?: ReactNode }) => (
+  UiInput: ({
+    label,
+    error,
+    ...props
+  }: InputHTMLAttributes<HTMLInputElement> & { label?: ReactNode; error?: ReactNode }) => (
     <label>
       {label}
       <input {...props} />
+      {error ? <span role="alert">{error}</span> : null}
     </label>
   ),
   UiPageHeading: ({ title }: { title: ReactNode }) => <h1>{title}</h1>,
@@ -92,9 +104,18 @@ vi.mock("@/lib/api", async (importOriginal) => {
     disconnectExternalGitConnection: vi.fn(),
     getExternalGitConnectionStatus: vi.fn(),
     listPersonalAccessTokens: vi.fn(),
-    revokePersonalAccessToken: vi.fn()
+    revokePersonalAccessToken: vi.fn(),
+    updateDisplayName: vi.fn()
   };
 });
+
+const authUser: AuthUser = {
+  display_name: "OIDC User",
+  email: "ada@example.test",
+  session_expires_at: "2026-10-01T12:00:00Z",
+  user_id: "user-1",
+  username: "ada"
+};
 
 const provider: ExternalGitProvider = {
   authorization_path: "/v1/external-git/providers/codeberg/authorize",
@@ -131,14 +152,22 @@ function connection(
 
 const t: Translator = (key) => key;
 
-function renderProfile() {
-  const queryClient = new QueryClient({
+function createQueryClient() {
+  return new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } }
   });
+}
+
+function renderProfile(queryClient = createQueryClient()) {
   return render(
     <MemoryRouter initialEntries={["/profile"]}>
       <QueryClientProvider client={queryClient}>
-        <ProfilePage externalGitProviders={[provider]} locale="en" t={t} />
+        <ProfilePage
+          authUser={authUser}
+          externalGitProviders={[provider]}
+          locale="en"
+          t={t}
+        />
       </QueryClientProvider>
     </MemoryRouter>
   );
@@ -192,5 +221,61 @@ describe("ProfilePage", () => {
       );
     });
     expect(dialog).toBeTruthy();
+  });
+
+  it("saves a trimmed display name and refreshes the signed-in account context", async () => {
+    vi.mocked(getExternalGitConnectionStatus).mockResolvedValue(connection(null));
+    vi.mocked(listPersonalAccessTokens).mockResolvedValue({ tokens: [] });
+    vi.mocked(updateDisplayName).mockResolvedValue({
+      ...authUser,
+      display_name: "Ada Lovelace"
+    });
+    const queryClient = createQueryClient();
+    queryClient.setQueryData<ApplicationBootstrap>(applicationBootstrapQueryKey, {
+      authConfig: {} as ApplicationBootstrap["authConfig"],
+      experience: {} as ApplicationBootstrap["experience"],
+      authUser
+    });
+    queryClient.setQueryData(signedInContextQueryKey(authUser.user_id), {
+      projects: [],
+      organizations: [],
+      hasAdminAccess: false
+    });
+
+    renderProfile(queryClient);
+    fireEvent.change(screen.getByLabelText("profile.displayNameLabel"), {
+      target: { value: "  Ada Lovelace  " }
+    });
+    fireEvent.click(screen.getByRole("button", { name: "common.save" }));
+
+    expect(await screen.findByText("profile.displayNameSaved")).toBeTruthy();
+    expect(vi.mocked(updateDisplayName).mock.calls[0]?.[0]).toBe("Ada Lovelace");
+    expect(
+      queryClient.getQueryData<ApplicationBootstrap>(applicationBootstrapQueryKey)
+        ?.authUser?.display_name
+    ).toBe("Ada Lovelace");
+    expect(
+      queryClient.getQueryState(signedInContextQueryKey(authUser.user_id))
+        ?.isInvalidated
+    ).toBe(true);
+  });
+
+  it("does not submit an empty or oversized display name", () => {
+    vi.mocked(getExternalGitConnectionStatus).mockResolvedValue(connection(null));
+    vi.mocked(listPersonalAccessTokens).mockResolvedValue({ tokens: [] });
+
+    renderProfile();
+    const input = screen.getByLabelText("profile.displayNameLabel");
+    const save = screen.getByRole("button", { name: "common.save" });
+    expect(save.hasAttribute("disabled")).toBe(true);
+
+    fireEvent.change(input, { target: { value: "   " } });
+    expect(save.hasAttribute("disabled")).toBe(true);
+
+    fireEvent.change(input, { target: { value: "a".repeat(65) } });
+    expect(save.hasAttribute("disabled")).toBe(true);
+    expect(screen.getByRole("alert").textContent).toBe("profile.displayNameInvalid");
+    fireEvent.click(save);
+    expect(updateDisplayName).not.toHaveBeenCalled();
   });
 });

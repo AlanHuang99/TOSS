@@ -1,5 +1,6 @@
 //! OpenID Connect protocol exchange and identity normalization.
 
+use super::account_policy::PLACEHOLDER_FEDERATED_DISPLAY_NAME;
 use super::auth_settings_model::AuthSettings;
 use super::oidc_claims::extract_groups_from_id_token;
 use super::oidc_policy::discovery_issuer;
@@ -8,9 +9,11 @@ use openidconnect::core::{
     CoreRequestTokenError,
 };
 use openidconnect::{
-    AuthorizationCode, ClientId, ClientSecret, CsrfToken, Nonce, RedirectUrl, Scope, TokenResponse,
+    AuthorizationCode, ClientId, ClientSecret, CsrfToken, LocalizedClaim, Nonce, RedirectUrl,
+    Scope, TokenResponse,
 };
 use reqwest::redirect::Policy;
+use std::ops::Deref;
 use std::time::Duration;
 use thiserror::Error;
 
@@ -213,15 +216,26 @@ fn resolve_identity(
     }
 }
 
+struct DisplayNameClaims<'claims> {
+    name: Option<&'claims str>,
+    given_name: Option<&'claims str>,
+    family_name: Option<&'claims str>,
+    preferred_username: Option<&'claims str>,
+    email: Option<&'claims str>,
+}
+
 fn identity_profile(claims: &CoreIdTokenClaims, subject: &str) -> IdentityProfile {
     let email = claims
         .email()
         .map(|value| value.to_string())
         .unwrap_or_else(|| format!("{subject}@oidc.local"));
-    let display_name = claims
-        .preferred_username()
-        .map(|value| value.to_string())
-        .unwrap_or_else(|| "OIDC User".to_string());
+    let display_name = display_name_from_claims(&DisplayNameClaims {
+        name: localized_claim_value(claims.name()),
+        given_name: localized_claim_value(claims.given_name()),
+        family_name: localized_claim_value(claims.family_name()),
+        preferred_username: claims.preferred_username().map(|value| value.as_str()),
+        email: claims.email().map(|value| value.as_str()),
+    });
     let username_seed = claims
         .preferred_username()
         .map(|value| value.to_string())
@@ -231,6 +245,58 @@ fn identity_profile(claims: &CoreIdTokenClaims, subject: &str) -> IdentityProfil
         display_name,
         username_seed,
     }
+}
+
+/// Prefers the full `name` claim, then the given and family names, then the
+/// preferred username, and finally the local part of the email claim.
+fn display_name_from_claims(claims: &DisplayNameClaims<'_>) -> String {
+    if let Some(name) = claims.name.and_then(non_empty_claim) {
+        return name.to_string();
+    }
+    let full_name = [claims.given_name, claims.family_name]
+        .into_iter()
+        .flatten()
+        .filter_map(non_empty_claim)
+        .collect::<Vec<_>>()
+        .join(" ");
+    if !full_name.is_empty() {
+        return full_name;
+    }
+    claims
+        .preferred_username
+        .and_then(non_empty_claim)
+        .or_else(|| {
+            claims
+                .email
+                .and_then(|email| email.split_once('@'))
+                .and_then(|(local_part, _)| non_empty_claim(local_part))
+        })
+        .unwrap_or(PLACEHOLDER_FEDERATED_DISPLAY_NAME)
+        .to_string()
+}
+
+/// Returns the untagged claim value, or else the localized value with the
+/// lowest language tag so the choice does not depend on map ordering.
+fn localized_claim_value<T>(claim: Option<&LocalizedClaim<T>>) -> Option<&str>
+where
+    T: Deref<Target = String>,
+{
+    let claim = claim?;
+    claim
+        .get(None)
+        .and_then(|value| non_empty_claim(value))
+        .or_else(|| {
+            claim
+                .iter()
+                .filter_map(|(language, value)| Some((language?, non_empty_claim(value)?)))
+                .min_by(|left, right| left.0.cmp(right.0))
+                .map(|(_, value)| value)
+        })
+}
+
+fn non_empty_claim(value: &str) -> Option<&str> {
+    let value = value.trim();
+    (!value.is_empty()).then_some(value)
 }
 
 async fn discover_provider(
@@ -262,11 +328,159 @@ fn username_seed_from_email(email: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::username_seed_from_email;
+    use super::{
+        display_name_from_claims, identity_profile, localized_claim_value,
+        username_seed_from_email, DisplayNameClaims, PLACEHOLDER_FEDERATED_DISPLAY_NAME,
+    };
+    use chrono::{Duration, Utc};
+    use openidconnect::core::CoreIdTokenClaims;
+    use openidconnect::{
+        Audience, EmptyAdditionalClaims, EndUserEmail, EndUserFamilyName, EndUserGivenName,
+        EndUserName, EndUserUsername, IssuerUrl, LanguageTag, LocalizedClaim, StandardClaims,
+        SubjectIdentifier,
+    };
+
+    fn claims(
+        standard_claims: StandardClaims<openidconnect::core::CoreGenderClaim>,
+    ) -> Result<CoreIdTokenClaims, url::ParseError> {
+        Ok(CoreIdTokenClaims::new(
+            IssuerUrl::new("https://identity.example.test".to_string())?,
+            vec![Audience::new("toss".to_string())],
+            Utc::now() + Duration::minutes(5),
+            Utc::now(),
+            standard_claims,
+            EmptyAdditionalClaims {},
+        ))
+    }
+
+    fn subject() -> SubjectIdentifier {
+        SubjectIdentifier::new("subject-1".to_string())
+    }
+
+    fn empty_display_name_claims() -> DisplayNameClaims<'static> {
+        DisplayNameClaims {
+            name: None,
+            given_name: None,
+            family_name: None,
+            preferred_username: None,
+            email: None,
+        }
+    }
 
     #[test]
     fn username_seed_prefers_the_email_local_part() {
         assert_eq!(username_seed_from_email("ada@example.com"), "ada");
         assert_eq!(username_seed_from_email("@example.com"), "oidc-user");
+    }
+
+    #[test]
+    fn display_name_follows_the_standard_claim_fallback_order() {
+        let mut claims = DisplayNameClaims {
+            name: Some("  Ada Lovelace "),
+            given_name: Some("Augusta"),
+            family_name: Some("King"),
+            preferred_username: Some("ada"),
+            email: Some("countess@example.test"),
+        };
+        assert_eq!(display_name_from_claims(&claims), "Ada Lovelace");
+
+        claims.name = Some("   ");
+        assert_eq!(display_name_from_claims(&claims), "Augusta King");
+
+        claims.family_name = None;
+        assert_eq!(display_name_from_claims(&claims), "Augusta");
+
+        claims.given_name = Some(" ");
+        claims.family_name = Some("King");
+        assert_eq!(display_name_from_claims(&claims), "King");
+
+        claims.family_name = None;
+        assert_eq!(display_name_from_claims(&claims), "ada");
+
+        claims.preferred_username = Some("");
+        assert_eq!(display_name_from_claims(&claims), "countess");
+
+        claims.email = Some(" @example.test");
+        assert_eq!(
+            display_name_from_claims(&claims),
+            PLACEHOLDER_FEDERATED_DISPLAY_NAME
+        );
+        assert_eq!(
+            display_name_from_claims(&empty_display_name_claims()),
+            PLACEHOLDER_FEDERATED_DISPLAY_NAME
+        );
+    }
+
+    #[test]
+    fn localized_names_prefer_the_untagged_value_then_the_lowest_language_tag() {
+        let untagged = LocalizedClaim::from_iter([
+            (
+                Some(LanguageTag::new("zh-CN".to_string())),
+                EndUserName::new("Localized".to_string()),
+            ),
+            (None, EndUserName::new("Untagged".to_string())),
+        ]);
+        assert_eq!(localized_claim_value(Some(&untagged)), Some("Untagged"));
+
+        let localized_only = LocalizedClaim::from_iter([
+            (
+                Some(LanguageTag::new("zh-CN".to_string())),
+                EndUserName::new("Second".to_string()),
+            ),
+            (
+                Some(LanguageTag::new("en".to_string())),
+                EndUserName::new(" First ".to_string()),
+            ),
+            (
+                Some(LanguageTag::new("de".to_string())),
+                EndUserName::new(" ".to_string()),
+            ),
+        ]);
+        assert_eq!(localized_claim_value(Some(&localized_only)), Some("First"));
+        assert_eq!(localized_claim_value::<EndUserName>(None), None);
+    }
+
+    #[test]
+    fn identity_profile_reads_names_from_verified_claims() -> Result<(), url::ParseError> {
+        let named = claims(
+            StandardClaims::new(subject())
+                .set_name(Some(LocalizedClaim::from(EndUserName::new(
+                    "Ada Lovelace".to_string(),
+                ))))
+                .set_preferred_username(Some(EndUserUsername::new("ada".to_string()))),
+        )?;
+        let profile = identity_profile(&named, "subject-1");
+        assert_eq!(profile.display_name, "Ada Lovelace");
+        assert_eq!(profile.username_seed, "ada");
+        assert_eq!(profile.email, "subject-1@oidc.local");
+
+        let split_name = claims(
+            StandardClaims::new(subject())
+                .set_given_name(Some(LocalizedClaim::from(EndUserGivenName::new(
+                    "Ada".to_string(),
+                ))))
+                .set_family_name(Some(LocalizedClaim::from(EndUserFamilyName::new(
+                    "Lovelace".to_string(),
+                )))),
+        )?;
+        assert_eq!(
+            identity_profile(&split_name, "subject-1").display_name,
+            "Ada Lovelace"
+        );
+
+        let email_only = claims(
+            StandardClaims::new(subject())
+                .set_email(Some(EndUserEmail::new("ada@example.test".to_string()))),
+        )?;
+        let profile = identity_profile(&email_only, "subject-1");
+        assert_eq!(profile.display_name, "ada");
+        assert_eq!(profile.username_seed, "ada");
+
+        let anonymous = claims(StandardClaims::new(subject()))?;
+        assert_eq!(
+            identity_profile(&anonymous, "subject-1").display_name,
+            PLACEHOLDER_FEDERATED_DISPLAY_NAME
+        );
+        Ok(())
     }
 }

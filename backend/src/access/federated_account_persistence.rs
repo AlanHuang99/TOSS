@@ -88,6 +88,25 @@ pub(super) async fn touch_identity(
     Ok(result.rows_affected() == 1)
 }
 
+pub(super) async fn replace_display_name_if_unchanged(
+    db: &PgPool,
+    user_id: Uuid,
+    expected_display_name: &str,
+    display_name: &str,
+) -> Result<bool, sqlx::Error> {
+    let result = sqlx::query(
+        "update users
+         set display_name = $3
+         where id = $1 and display_name = $2",
+    )
+    .bind(user_id)
+    .bind(expected_display_name)
+    .bind(display_name)
+    .execute(db)
+    .await?;
+    Ok(result.rows_affected() == 1)
+}
+
 pub(super) async fn bind_identity(
     connection: &mut PgConnection,
     user_id: Uuid,

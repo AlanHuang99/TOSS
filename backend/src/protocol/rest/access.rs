@@ -7,8 +7,9 @@ use crate::access::{
     PersonalAccessTokenListResponse, ProjectAccessUserListResponse, ProjectGroupRoleBinding,
     ProjectOrganizationAccess, ProjectRoleBinding, ProjectShareLink,
     ResolveProjectShareLinkResponse, SessionResponse, TemporaryShareLoginInput,
-    TemporaryShareLoginResponse, UpsertAdminAuthSettingsInput, UpsertOrgGroupRoleMappingInput,
-    UpsertProjectGroupRoleInput, UpsertProjectOrganizationAccessInput, UpsertRoleInput,
+    TemporaryShareLoginResponse, UpdateAuthMeInput, UpsertAdminAuthSettingsInput,
+    UpsertOrgGroupRoleMappingInput, UpsertProjectGroupRoleInput,
+    UpsertProjectOrganizationAccessInput, UpsertRoleInput,
 };
 
 json_operation!(
@@ -70,6 +71,15 @@ json_operation!(
     get,
     "/v1/auth/me",
     "identity-access",
+    200,
+    AuthMeResponse
+);
+json_operation!(
+    update_auth_me,
+    patch,
+    "/v1/auth/me",
+    "identity-access",
+    UpdateAuthMeInput,
     200,
     AuthMeResponse
 );

@@ -198,9 +198,11 @@ function ShareRoute() {
 }
 
 function ProfileRoute() {
-  const { authConfig, locale, t } = useAppContext();
+  const { authConfig, authUser, locale, t } = useAppContext();
+  if (!authUser) return null;
   return (
     <ProfilePage
+      authUser={authUser}
       externalGitProviders={authConfig.external_git_providers}
       locale={locale}
       t={t}
