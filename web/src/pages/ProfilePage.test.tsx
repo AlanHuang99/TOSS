@@ -23,6 +23,7 @@ import {
   type ApplicationBootstrap
 } from "@/applicationSession";
 import {
+  createPersonalAccessToken,
   disconnectExternalGitConnection,
   getExternalGitConnectionStatus,
   listPersonalAccessTokens,
@@ -40,6 +41,15 @@ vi.mock("@/components/ui", () => ({
     <button {...props}>{children}</button>
   ),
   UiCard: ({ children }: PropsWithChildren) => <section>{children}</section>,
+  UiCheckbox: ({
+    label,
+    ...props
+  }: InputHTMLAttributes<HTMLInputElement> & { label: ReactNode }) => (
+    <label>
+      {label}
+      <input {...props} type="checkbox" />
+    </label>
+  ),
   UiDialog: ({
     open,
     children,
@@ -277,5 +287,66 @@ describe("ProfilePage", () => {
     expect(screen.getByRole("alert").textContent).toBe("profile.displayNameInvalid");
     fireEvent.click(save);
     expect(updateDisplayName).not.toHaveBeenCalled();
+  });
+
+  it("creates a token with the selected scopes", async () => {
+    vi.mocked(getExternalGitConnectionStatus).mockResolvedValue(connection(null));
+    vi.mocked(listPersonalAccessTokens).mockResolvedValue({ tokens: [] });
+    vi.mocked(createPersonalAccessToken).mockResolvedValue({
+      created_at: "2026-10-01T00:00:00Z",
+      expires_at: null,
+      id: "token-1",
+      label: "CI",
+      scopes: ["api"],
+      token: "tpat_example",
+      token_prefix: "tpat_example"
+    });
+
+    renderProfile();
+    const create = screen.getByRole("button", { name: "profile.createToken" });
+    const git = screen.getByLabelText("profile.scopeGit");
+    const api = screen.getByLabelText("profile.scopeApi");
+    expect((git as HTMLInputElement).checked).toBe(true);
+    expect((api as HTMLInputElement).checked).toBe(false);
+
+    fireEvent.click(git);
+    expect(create.hasAttribute("disabled")).toBe(true);
+    expect(screen.getByText("profile.scopeRequired")).toBeTruthy();
+
+    fireEvent.click(api);
+    fireEvent.click(create);
+
+    await waitFor(() => {
+      expect(vi.mocked(createPersonalAccessToken).mock.calls[0]?.[0]).toMatchObject({
+        scopes: ["api"]
+      });
+    });
+    expect(await screen.findByText("tpat_example")).toBeTruthy();
+  });
+
+  it("shows the scopes of existing tokens", async () => {
+    vi.mocked(getExternalGitConnectionStatus).mockResolvedValue(connection(null));
+    vi.mocked(listPersonalAccessTokens).mockResolvedValue({
+      tokens: [
+        {
+          created_at: "2026-10-01T00:00:00Z",
+          expires_at: null,
+          id: "token-1",
+          label: "Automation",
+          last_used_at: null,
+          revoked_at: null,
+          scopes: ["git", "api"],
+          token_prefix: "tpat_abcdefg"
+        }
+      ]
+    });
+
+    renderProfile();
+
+    const scopes = await screen.findByLabelText(
+      "profile.tokenScopes: profile.scopeGit, profile.scopeApi"
+    );
+    expect(within(scopes).getByText("profile.scopeGit")).toBeTruthy();
+    expect(within(scopes).getByText("profile.scopeApi")).toBeTruthy();
   });
 });

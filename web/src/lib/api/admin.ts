@@ -29,7 +29,11 @@ export async function createPersonalAccessToken(input: CreatePatInput) {
     method: "POST",
     credentials: authCredentials(),
     headers: authHeaders({ "content-type": "application/json" }),
-    body: JSON.stringify({ label: input.label, expires_at: input.expires_at ?? null })
+    body: JSON.stringify({
+      label: input.label,
+      expires_at: input.expires_at ?? null,
+      scopes: input.scopes ?? null
+    })
   });
   return parseJsonOrThrow<CreatePatResponse>(response, "api.createToken");
 }

@@ -76,6 +76,16 @@ counts as a login method independently of federated identities.
 Application sessions use an HTTP-only cookie. Session, personal access, and
 named guest tokens are stored as 32-byte SHA-256 fingerprints; plaintext is
 not recoverable. Personal access token plaintext is returned once at creation.
+
+Personal access tokens carry scopes. `git` admits Git smart HTTP and `api`
+admits REST requests that send the token as a bearer credential; tokens
+created before scopes existed keep only `git`. Personal tokens start with
+`tpat_`, which never occurs in session tokens, so Access validates a prefixed
+bearer value only as a personal token and checks expiry and revocation on
+every request. Principal resolution records which credential authenticated
+the request (session, personal token, or development header), and token
+management and site administration refuse personal tokens. The last-use time
+is written at most once per minute per token.
 Project share links are intentionally recoverable and store one canonical token
 value so managers can copy an existing link.
 

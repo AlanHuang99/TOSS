@@ -289,9 +289,9 @@ named temporary guest session alone is not sufficient. See
 - `GET /v1/git/repo-link/{project_id}`
 - `GET|POST /v1/git/repo/{project_id}/{rest}`
 
-Git transport requires a personal access token as the HTTP password. Clone and
-fetch require project read access; push requires the project owner. Force
-pushes and stale non-fast-forward updates are rejected.
+Git transport requires a personal access token with the `git` scope as the
+HTTP password. Clone and fetch require project read access; push requires the
+project owner. Force pushes and stale non-fast-forward updates are rejected.
 
 ## External Git connection, import, and checkpoints
 
@@ -339,7 +339,17 @@ before a branch replacement cannot write the previous document back afterward.
 - `DELETE /v1/profile/security/tokens/{token_id}`
 
 Personal access-token plaintext is returned once at creation. Tokens may expire
-and record their last successful use.
+and record their last successful use with one-minute resolution.
+
+Each token carries `scopes`, a non-empty subset of `git` and `api`. Creation
+accepts an optional `scopes` list and defaults to `["git"]`; tokens created
+before scopes existed are Git-only. A token with the `api` scope authenticates
+`/v1` requests as `Authorization: Bearer tpat_...` with the owner's normal
+project permissions; the cookie and WebSocket query credentials never accept
+personal tokens. A token without the `api` scope is not a valid bearer
+credential. Requests authenticated with a personal access token are refused
+with `403` and `code: "auth_personal_access_token_refused"` on these profile
+security routes and on every site-administration route.
 
 ## Administration
 
@@ -348,7 +358,8 @@ and record their last successful use.
 - `DELETE /v1/admin/orgs/{org_id}/oidc-group-role-mappings/{group_name}`
 
 Admin settings include `managed_fields`. Values owned by a distribution or
-deployment policy are visible but read-only in the UI.
+deployment policy are visible but read-only in the UI. Administration requires
+a signed-in session; personal access tokens are refused.
 
 ## Related
 

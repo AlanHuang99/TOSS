@@ -1,6 +1,8 @@
 use super::auth_settings_persistence;
 use super::organization;
-use super::principal::{cookie_value, header_value, request_user_id, RequestAuthenticationError};
+use super::principal::{
+    cookie_value, header_value, request_principal, request_user_id, RequestAuthenticationError,
+};
 use super::resolution_persistence;
 use super::sharing_persistence;
 use super::{AnonymousMode, ProjectPermission, ProjectRole};
@@ -374,13 +376,16 @@ async fn is_site_admin(db: &PgPool, user_id: Uuid) -> Result<bool, SiteAdminAuth
         .map_err(SiteAdminAuthorizationError::Store)
 }
 
+/// Site administration is refused to personal access tokens even when the
+/// token owner is a site administrator.
 pub(crate) async fn ensure_site_admin(
     db: &PgPool,
     headers: &HeaderMap,
 ) -> Result<Uuid, SiteAdminAuthorizationError> {
-    let Some(actor) = request_user_id(db, headers).await? else {
+    let Some(principal) = request_principal(db, headers).await? else {
         return Err(SiteAdminAuthorizationError::AuthenticationRequired);
     };
+    let actor = principal.privileged_user_id()?;
     if !is_site_admin(db, actor).await? {
         return Err(SiteAdminAuthorizationError::PermissionDenied);
     }

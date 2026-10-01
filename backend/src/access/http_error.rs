@@ -22,6 +22,9 @@ impl From<RequestAuthenticationError> for ApiError {
     fn from(source: RequestAuthenticationError) -> Self {
         match source {
             RequestAuthenticationError::Required => authentication_required(),
+            RequestAuthenticationError::PersonalAccessTokenRefused => {
+                personal_access_token_refused()
+            }
             failure @ RequestAuthenticationError::Store(_) => {
                 authorization_unavailable("request principal resolution failed", failure)
             }
@@ -36,6 +39,9 @@ impl From<ProjectAuthorizationError> for ApiError {
             ProjectAuthorizationError::Authentication(RequestAuthenticationError::Required) => {
                 authentication_required()
             }
+            ProjectAuthorizationError::Authentication(
+                RequestAuthenticationError::PersonalAccessTokenRefused,
+            ) => personal_access_token_refused(),
             ProjectAuthorizationError::PermissionDenied => ApiError::new(
                 StatusCode::FORBIDDEN,
                 ApiErrorCode::ProjectAccessForbidden,
@@ -64,6 +70,9 @@ impl From<SiteAdminAuthorizationError> for ApiError {
             SiteAdminAuthorizationError::Authentication(RequestAuthenticationError::Required) => {
                 authentication_required()
             }
+            SiteAdminAuthorizationError::Authentication(
+                RequestAuthenticationError::PersonalAccessTokenRefused,
+            ) => personal_access_token_refused(),
             SiteAdminAuthorizationError::PermissionDenied => ApiError::new(
                 StatusCode::FORBIDDEN,
                 ApiErrorCode::SiteAdminRequired,
@@ -90,6 +99,14 @@ fn authentication_required() -> ApiError {
         StatusCode::UNAUTHORIZED,
         ApiErrorCode::AuthRequired,
         "Authentication required",
+    )
+}
+
+fn personal_access_token_refused() -> ApiError {
+    ApiError::new(
+        StatusCode::FORBIDDEN,
+        ApiErrorCode::AuthPersonalAccessTokenRefused,
+        "Personal access tokens cannot be used for this operation; sign in instead",
     )
 }
 
@@ -125,6 +142,19 @@ mod tests {
         let error = ApiError::from(InvalidDisplayName);
         assert_eq!(error.status(), StatusCode::BAD_REQUEST);
         assert_eq!(error.code(), ApiErrorCode::AuthDisplayNameInvalid);
+    }
+
+    #[test]
+    fn personal_access_token_refusal_is_forbidden_with_its_own_code() {
+        for error in [
+            ApiError::from(RequestAuthenticationError::PersonalAccessTokenRefused),
+            ApiError::from(SiteAdminAuthorizationError::Authentication(
+                RequestAuthenticationError::PersonalAccessTokenRefused,
+            )),
+        ] {
+            assert_eq!(error.status(), StatusCode::FORBIDDEN);
+            assert_eq!(error.code(), ApiErrorCode::AuthPersonalAccessTokenRefused);
+        }
     }
 
     #[test]

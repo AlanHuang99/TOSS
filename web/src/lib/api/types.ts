@@ -87,6 +87,7 @@ export type RevisionTransfer = ApiSchema<"RevisionTransfer">;
 export type PdfArtifact = ApiSchema<"PdfArtifact">;
 
 export type PersonalAccessTokenInfo = ApiSchema<"PersonalAccessTokenInfo">;
+export type PersonalAccessTokenScope = ApiSchema<"PersonalAccessTokenScope">;
 export type PersonalAccessTokenListResponse =
   ApiSchema<"PersonalAccessTokenListResponse">;
 export type CreatePatResponse = ApiSchema<"CreatePatResponse">;

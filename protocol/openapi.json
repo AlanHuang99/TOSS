@@ -5096,6 +5096,7 @@
           "auth_last_login_method",
           "auth_password_required",
           "auth_password_too_short",
+          "auth_personal_access_token_refused",
           "auth_provider_account_conflict",
           "auth_required",
           "auth_service_unavailable",
@@ -5536,6 +5537,15 @@
               "string",
               "null"
             ]
+          },
+          "scopes": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/PersonalAccessTokenScope"
+            }
           }
         }
       },
@@ -5546,6 +5556,7 @@
           "label",
           "token",
           "token_prefix",
+          "scopes",
           "created_at",
           "expires_at"
         ],
@@ -5562,6 +5573,12 @@
           },
           "token_prefix": {
             "type": "string"
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PersonalAccessTokenScope"
+            }
           },
           "created_at": {
             "type": "string",
@@ -7070,6 +7087,7 @@
           "id",
           "label",
           "token_prefix",
+          "scopes",
           "created_at",
           "expires_at",
           "last_used_at",
@@ -7085,6 +7103,12 @@
           },
           "token_prefix": {
             "type": "string"
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PersonalAccessTokenScope"
+            }
           },
           "created_at": {
             "type": "string",
@@ -7126,6 +7150,13 @@
             }
           }
         }
+      },
+      "PersonalAccessTokenScope": {
+        "type": "string",
+        "enum": [
+          "git",
+          "api"
+        ]
       },
       "ProcessingArtifact": {
         "type": "object",

@@ -15,6 +15,7 @@ pub enum ApiErrorCode {
     AuthLastLoginMethod,
     AuthPasswordRequired,
     AuthPasswordTooShort,
+    AuthPersonalAccessTokenRefused,
     AuthProviderAccountConflict,
     AuthRequired,
     AuthServiceUnavailable,

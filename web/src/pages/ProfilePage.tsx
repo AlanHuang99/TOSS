@@ -29,6 +29,7 @@ import {
   UiButton,
   UiBadge,
   UiCard,
+  UiCheckbox,
   UiDialog,
   UiEmptyState,
   UiHelpTooltip,
@@ -55,7 +56,8 @@ import {
   type AuthUser,
   type ExternalGitConnectionStatus,
   type ExternalGitProvider,
-  type PersonalAccessTokenInfo
+  type PersonalAccessTokenInfo,
+  type PersonalAccessTokenScope
 } from "@/lib/api";
 import { formatDateTime, type Translator, type UiLocale } from "@/lib/i18n";
 import { safeReturnPath } from "@/lib/experience";
@@ -64,12 +66,14 @@ type CreatePatReveal = {
   token: string;
   token_prefix: string;
   label: string;
+  scopes: PersonalAccessTokenScope[];
   expires_at?: string | null;
   created_at?: string;
 };
 
 type TokenState = "active" | "expired" | "revoked";
 const EMPTY_TOKENS: PersonalAccessTokenInfo[] = [];
+const TOKEN_SCOPES: PersonalAccessTokenScope[] = ["git", "api"];
 const DISPLAY_NAME_MAX_CHARS = 64;
 
 function displayNameIsValid(value: string) {
@@ -78,6 +82,10 @@ function displayNameIsValid(value: string) {
     Array.from(value).length <= DISPLAY_NAME_MAX_CHARS &&
     !/[\u0000-\u001f\u007f-\u009f]/u.test(value)
   );
+}
+
+function tokenScopeLabel(scope: PersonalAccessTokenScope, t: Translator) {
+  return scope === "api" ? t("profile.scopeApi") : t("profile.scopeGit");
 }
 
 function tokenState(token: PersonalAccessTokenInfo): TokenState {
@@ -203,6 +211,7 @@ export function ProfilePage({
   const [tokenLabel, setTokenLabel] = useState(() => t("profile.defaultTokenLabel"));
   const [tokenExpiryPreset, setTokenExpiryPreset] = useState<"never" | "7d" | "30d" | "90d" | "custom">("30d");
   const [tokenCustomExpiresAtLocal, setTokenCustomExpiresAtLocal] = useState("");
+  const [tokenScopes, setTokenScopes] = useState<PersonalAccessTokenScope[]>(["git"]);
   const [newToken, setNewToken] = useState<CreatePatReveal | null>(null);
   const [revokeCandidateId, setRevokeCandidateId] = useState<string | null>(null);
   const [copiedToken, setCopiedToken] = useState(false);
@@ -305,18 +314,28 @@ export function ProfilePage({
     return new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
   }
 
+  function setTokenScope(scope: PersonalAccessTokenScope, enabled: boolean) {
+    setTokenScopes((current) =>
+      TOKEN_SCOPES.filter((value) =>
+        value === scope ? enabled : current.includes(value)
+      )
+    );
+  }
+
   async function createToken() {
-    if (!tokenLabel.trim()) return;
+    if (!tokenLabel.trim() || tokenScopes.length === 0) return;
     try {
       setOperationError(null);
       const created = await createTokenMutation.mutateAsync({
         label: tokenLabel.trim(),
-        expires_at: computeExpiresAt()
+        expires_at: computeExpiresAt(),
+        scopes: tokenScopes
       });
       setNewToken({
         token: created.token,
         token_prefix: created.token_prefix,
         label: created.label,
+        scopes: created.scopes,
         expires_at: created.expires_at,
         created_at: created.created_at
       });
@@ -495,10 +514,30 @@ export function ProfilePage({
                 onChange={(event) => setTokenCustomExpiresAtLocal(event.target.value)}
               />
             ) : null}
+            <fieldset className="profile-token-scopes">
+              <legend>{t("profile.tokenScopes")}</legend>
+              {TOKEN_SCOPES.map((scope) => (
+                <UiCheckbox
+                  key={scope}
+                  label={tokenScopeLabel(scope, t)}
+                  checked={tokenScopes.includes(scope)}
+                  onChange={(event) => setTokenScope(scope, event.target.checked)}
+                />
+              ))}
+              {tokenScopes.length === 0 ? (
+                <small className="profile-token-scopes-hint">
+                  {t("profile.scopeRequired")}
+                </small>
+              ) : null}
+            </fieldset>
           </div>
 
           <div className="profile-form-actions">
-            <UiButton variant="primary" onClick={createToken} disabled={creating || !tokenLabel.trim()}>
+            <UiButton
+              variant="primary"
+              onClick={createToken}
+              disabled={creating || !tokenLabel.trim() || tokenScopes.length === 0}
+            >
               <span className="profile-button-content">
                 {creating ? null : <Plus size={15} aria-hidden />}
                 {creating ? t("profile.creating") : t("profile.createToken")}
@@ -530,6 +569,11 @@ export function ProfilePage({
                 icon={<KeyRound size={13} aria-hidden />}
                 label={t("profile.tokenLabel")}
                 value={newToken.label}
+              />
+              <TokenMetadata
+                icon={<ShieldCheck size={13} aria-hidden />}
+                label={t("profile.tokenScopes")}
+                value={newToken.scopes.map((scope) => tokenScopeLabel(scope, t)).join(", ")}
               />
               <TokenMetadata
                 icon={<Hourglass size={13} aria-hidden />}
@@ -594,6 +638,18 @@ export function ProfilePage({
                     <div className="profile-token-identity">
                       <strong>{token.label}</strong>
                       <code>{token.token_prefix}</code>
+                      <span
+                        className="profile-token-scope-list"
+                        aria-label={`${t("profile.tokenScopes")}: ${token.scopes
+                          .map((scope) => tokenScopeLabel(scope, t))
+                          .join(", ")}`}
+                      >
+                        {token.scopes.map((scope) => (
+                          <UiBadge key={scope} tone="neutral">
+                            {tokenScopeLabel(scope, t)}
+                          </UiBadge>
+                        ))}
+                      </span>
                     </div>
                     <div className="profile-token-actions">
                       <UiIconButton

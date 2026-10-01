@@ -105,8 +105,10 @@ pub(crate) use personal_token_http::{
     create_personal_access_token, list_personal_access_tokens, revoke_personal_access_token,
     CreatePatInput, CreatePatResponse, PersonalAccessTokenListResponse,
 };
-pub(crate) use personal_token_model::PersonalAccessTokenInfo;
-pub(crate) use principal::{authenticated_user_id, request_user_id, required_request_user_id};
+pub(crate) use personal_token_model::{PersonalAccessTokenInfo, PersonalAccessTokenScope};
+pub(crate) use principal::{
+    authenticated_principal, authenticated_user_id, request_user_id, required_request_user_id,
+};
 pub(crate) use session_http::{
     auth_cookie_secure, auth_logout, auth_me, issue_session_for_request, session_cookie,
     update_auth_me, AuthMeResponse, SessionResponse, UpdateAuthMeInput,
